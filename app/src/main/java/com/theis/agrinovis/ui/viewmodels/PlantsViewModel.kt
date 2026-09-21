@@ -1,12 +1,15 @@
 package com.theis.agrinovis.ui.viewmodels
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.theis.agrinovis.data.local.database.AgrinovisDatabase
 import com.theis.agrinovis.data.local.entities.PlantEntity
 import com.theis.agrinovis.data.local.entities.ActivityLogEntity
 import com.theis.agrinovis.data.repository.PlantRepository
+import com.theis.agrinovis.data.remote.StorageService
+import com.theis.agrinovis.data.session.MonitoringSession
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -38,8 +41,45 @@ class PlantsViewModel(application: Application) : AndroidViewModel(application) 
 
     fun savePlant(plant: PlantEntity) {
         viewModelScope.launch {
+            // 1. Upload Images to Supabase for Dataset Collection
+            uploadImages(plant.id)
+
+            // 2. Save locally and sync DB record
             repository.insert(plant)
             activityDao.insertActivity(ActivityLogEntity(action = "REGISTERED", affectedRecord = "Plant ${plant.id}"))
+            
+            // 3. Clear session
+            MonitoringSession.diameterImageUri = null
+            MonitoringSession.heightImageUri = null
+        }
+    }
+
+    private suspend fun uploadImages(plantId: String) {
+        val diameterUri = MonitoringSession.diameterImageUri
+        val heightUri = MonitoringSession.heightImageUri
+
+        diameterUri?.let { uriString ->
+            readUriBytes(uriString)?.let { bytes ->
+                StorageService.uploadLettuceImage("diameter_$plantId.jpg", bytes)
+            }
+        }
+
+        heightUri?.let { uriString ->
+            readUriBytes(uriString)?.let { bytes ->
+                StorageService.uploadLettuceImage("height_$plantId.jpg", bytes)
+            }
+        }
+    }
+
+    private fun readUriBytes(uriString: String): ByteArray? {
+        return try {
+            val uri = Uri.parse(uriString)
+            getApplication<Application>().contentResolver.openInputStream(uri)?.use { 
+                it.readBytes()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 

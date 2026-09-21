@@ -10,16 +10,30 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.theis.agrinovis.ui.components.futuristicTextFieldColors
 import com.theis.agrinovis.ui.navigation.Screen
 import com.theis.agrinovis.ui.theme.NeonGreen
+import com.theis.agrinovis.ui.viewmodels.AuthState
+import com.theis.agrinovis.ui.viewmodels.AuthViewModel
 
 @Composable
-fun SignupScreen(navController: NavController) {
-    var name by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
+fun SignupScreen(
+    navController: NavController,
+    viewModel: AuthViewModel = viewModel()
+) {
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    val authState by viewModel.authState.collectAsState()
+
+    LaunchedEffect(authState) {
+        if (authState is AuthState.Success) {
+            navController.navigate(Screen.Dashboard.route) {
+                popUpTo(Screen.Login.route) { inclusive = true }
+            }
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -49,20 +63,9 @@ fun SignupScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(32.dp))
 
             OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = { Text("FULL_NAME", color = Color.White) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                colors = futuristicTextFieldColors()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("FARMER_ID", color = Color.White) },
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("EMAIL_ADDRESS", color = Color.White) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 colors = futuristicTextFieldColors()
@@ -79,19 +82,30 @@ fun SignupScreen(navController: NavController) {
                 colors = futuristicTextFieldColors()
             )
 
+            if (authState is AuthState.Error) {
+                Text(
+                    text = (authState as AuthState.Error).message,
+                    color = Color.Red,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
                 onClick = {
-                    navController.navigate(Screen.Dashboard.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
-                    }
+                    viewModel.signUp(email, password)
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(28.dp),
+                enabled = authState !is AuthState.Loading,
                 colors = ButtonDefaults.buttonColors(containerColor = NeonGreen)
             ) {
-                Text("REGISTER", fontWeight = FontWeight.Bold, color = Color.Black)
+                if (authState is AuthState.Loading) {
+                    CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("REGISTER", fontWeight = FontWeight.Bold, color = Color.Black)
+                }
             }
 
             TextButton(
