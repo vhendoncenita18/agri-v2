@@ -476,7 +476,7 @@ fun VerificationScreen(navController: NavController) {
                 onClick = {
                     try {
                         val entity = PlantEntity(
-                            id = "L00${System.currentTimeMillis() % 1000}", // Auto-ID
+                            id = "L-${UUID.randomUUID().toString().take(6).uppercase()}", // Unique Auto-ID
                             variety = variety,
                             stage = growthStage,
                             plantedDate = plantedDate,

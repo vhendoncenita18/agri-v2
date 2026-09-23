@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,9 +30,9 @@ import com.theis.agrinovis.ui.components.ShimmerSkeletonItem
 import com.theis.agrinovis.ui.navigation.Screen
 import com.theis.agrinovis.ui.theme.DarkHologramBG
 import com.theis.agrinovis.ui.theme.GlassBackground
-import com.theis.agrinovis.ui.theme.NavBarBackground
 import com.theis.agrinovis.ui.theme.NeonGreen
 import com.theis.agrinovis.ui.viewmodels.PlantsViewModel
+import com.theis.agrinovis.ui.viewmodels.SavePlantState
 import kotlinx.coroutines.delay
 
 @Composable
@@ -43,9 +44,18 @@ fun PredictionResultScreen(
     var isLoading by remember { mutableStateOf(true) }
     var showSuccessCard by remember { mutableStateOf(false) }
 
+    val saveState by viewModel.savePlantState.collectAsState()
+
     LaunchedEffect(Unit) {
+        viewModel.resetSaveState()
         delay(2000) // Simulated neural processing delay
         isLoading = false
+    }
+
+    LaunchedEffect(saveState) {
+        if (saveState is SavePlantState.Success) {
+            showSuccessCard = true
+        }
     }
 
     AgrinovisScaffold(
@@ -120,6 +130,36 @@ fun PredictionResultScreen(
                             )
                         }
 
+                        // ERROR ALERT BANNER FOR SUPABASE INSERT FAILURE
+                        if (saveState is SavePlantState.Error) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(Color(0xFFFF5252).copy(alpha = 0.15f))
+                                        .border(1.dp, Color(0xFFFF5252).copy(alpha = 0.5f), RoundedCornerShape(12.dp))
+                                        .padding(12.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Default.Error,
+                                            contentDescription = null,
+                                            tint = Color(0xFFFF5252),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(10.dp))
+                                        Text(
+                                            text = (saveState as SavePlantState.Error).message,
+                                            color = Color.White,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
                         item {
                             // Futuristic Result Card
                             Box(
@@ -154,13 +194,22 @@ fun PredictionResultScreen(
                             Button(
                                 onClick = { 
                                     viewModel.savePlant(plant)
-                                    showSuccessCard = true
                                 },
                                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = NeonGreen),
+                                enabled = saveState !is SavePlantState.Loading,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = NeonGreen,
+                                    disabledContainerColor = NeonGreen.copy(alpha = 0.4f)
+                                ),
                                 shape = RoundedCornerShape(28.dp)
                             ) {
-                                Text("COMMIT TO ARCHIVES", fontWeight = FontWeight.Black, color = Color.Black)
+                                if (saveState is SavePlantState.Loading) {
+                                    CircularProgressIndicator(color = Color.Black, modifier = Modifier.size(20.dp), strokeWidth = 2.5.dp)
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text("COMMITTING TO SUPABASE...", fontWeight = FontWeight.Black, color = Color.Black)
+                                } else {
+                                    Text("COMMIT TO ARCHIVES", fontWeight = FontWeight.Black, color = Color.Black)
+                                }
                             }
                         }
                     }
@@ -191,10 +240,11 @@ fun PredictionResultScreen(
                         ) {
                             Icon(Icons.Default.CheckCircle, contentDescription = null, tint = NeonGreen, modifier = Modifier.size(64.dp))
                             Text("PLANT ARCHIVED", color = NeonGreen, fontWeight = FontWeight.Black, fontSize = 20.sp)
-                            Text("Neural records updated successfully.", color = Color.White, fontSize = 14.sp)
+                            Text("Neural records updated & saved to Supabase successfully.", color = Color.White, fontSize = 14.sp)
                             Spacer(modifier = Modifier.height(8.dp))
                             Button(
                                 onClick = { 
+                                    viewModel.resetSaveState()
                                     navController.navigate(Screen.Plants.route) {
                                         popUpTo(Screen.Dashboard.route) { 
                                             inclusive = true 

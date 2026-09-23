@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -83,6 +84,8 @@ fun PlantDetailScreen(
                     CircularProgressIndicator(color = NeonGreen)
                 }
             } else {
+                val recommendations = PlantUtils.getRecommendationsForStage(plant!!.stage)
+
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -109,9 +112,18 @@ fun PlantDetailScreen(
                             
                             HolographicCard(title = "Plant Information") {
                                 HolographicDetailItem("VARIETY", plant!!.variety)
+                                HolographicDetailItem("STAGE", plant!!.stage.uppercase())
                                 HolographicDetailItem("PLANTED ON", plant!!.plantedDate)
                                 HolographicDetailItem("GROWTH AGE", "${plant!!.dap} DAYS")
                                 HolographicDetailItem("LEAF COUNT", plant!!.leafCount.toString())
+                            }
+
+                            HolographicCard(title = "Stage Recommendations & Guidance") {
+                                StageRecommendationRow("PRIMARY FOCUS", recommendations.primaryFocus)
+                                StageRecommendationRow("IRRIGATION SCHEDULE", recommendations.irrigationAdvice)
+                                StageRecommendationRow("LIGHTING & CLIMATE", recommendations.lightingAdvice)
+                                StageRecommendationRow("NUTRIENT FORMULA", recommendations.nutrientAdvice)
+                                StageRecommendationRow("DAILY MONITORING TIP", recommendations.monitoringTip)
                             }
 
                             HolographicCard(title = "Atmospheric conditions") {
@@ -138,5 +150,24 @@ fun PlantDetailScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun StageRecommendationRow(label: String, detail: String) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = label,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = NeonGreen.copy(alpha = 0.8f)
+        )
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = detail,
+            fontSize = 12.sp,
+            color = Color.White.copy(alpha = 0.85f),
+            lineHeight = 16.sp
+        )
     }
 }

@@ -34,6 +34,14 @@ fun ProfileScreen(
 ) {
     val user by viewModel.userState.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showResearchDialog by remember { mutableStateOf(false) }
+    var showAboutDialog by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
+    var showPrivacyDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        viewModel.loadUserProfile()
+    }
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -44,8 +52,10 @@ fun ProfileScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showLogoutDialog = false
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.Dashboard.route) { inclusive = true }
+                    viewModel.signOut {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Dashboard.route) { inclusive = true }
+                        }
                     }
                 }) {
                     Text("LOGOUT", color = Color.Red, fontWeight = FontWeight.Bold)
@@ -54,6 +64,118 @@ fun ProfileScreen(
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
                     Text("CANCEL", color = Color.White)
+                }
+            }
+        )
+    }
+
+    if (showResearchDialog) {
+        AlertDialog(
+            onDismissRequest = { showResearchDialog = false },
+            containerColor = DarkHologramBG,
+            title = { Text("SYSTEM RESEARCH & INFO", color = Color.White, fontWeight = FontWeight.Black) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Lettuce Research Overview:",
+                        color = NeonGreen,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = "• About Lettuce Monitoring: Computer Vision and Machine Learning models process diameter and height to estimate remaining growth days until harvest.\n• Thesis Objectives: Scientific data collection and growth monitoring methodology.\n• Growing Stages: Identifies Seedling, Vegetative, Heading, and Maturity stages mapped to 3D plant models.",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showResearchDialog = false }) {
+                    Text("CLOSE", color = NeonGreen, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    if (showAboutDialog) {
+        AlertDialog(
+            onDismissRequest = { showAboutDialog = false },
+            containerColor = DarkHologramBG,
+            title = { Text("ABOUT AGRINOVIS", color = Color.White, fontWeight = FontWeight.Black) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "AGRINOVIS v1.0.0",
+                        color = NeonGreen,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = "A Smart Lettuce Harvest Prediction & Computer Vision System developed for precision agricultural monitoring. Combines image-based dimension extraction and prediction models for growth tracking.",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 13.sp
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showAboutDialog = false }) {
+                    Text("CLOSE", color = NeonGreen, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    if (showHelpDialog) {
+        AlertDialog(
+            onDismissRequest = { showHelpDialog = false },
+            containerColor = DarkHologramBG,
+            title = { Text("HELP & SUPPORT", color = Color.White, fontWeight = FontWeight.Black) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "System Guide & Support:",
+                        color = NeonGreen,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = "• Camera Capture: Center the lettuce in the frame under good lighting.\n• Data Syncing: Monitored plants automatically sync with Supabase when online.\n• Predictions: Growth stages and harvest timelines update dynamically with fresh measurements.",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showHelpDialog = false }) {
+                    Text("CLOSE", color = NeonGreen, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
+
+    if (showPrivacyDialog) {
+        AlertDialog(
+            onDismissRequest = { showPrivacyDialog = false },
+            containerColor = DarkHologramBG,
+            title = { Text("PRIVACY PROTOCOL", color = Color.White, fontWeight = FontWeight.Black) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Data Policy & Protection:",
+                        color = NeonGreen,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = "• Local-first storage ensures plant records remain accessible offline.\n• Cloud sync utilizes encrypted network calls to Supabase backend.\n• Plant images are stored strictly for dataset preparation and growth analysis.",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 12.sp
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPrivacyDialog = false }) {
+                    Text("CLOSE", color = NeonGreen, fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -144,9 +266,14 @@ fun ProfileScreen(
 
             item { Spacer(modifier = Modifier.height(24.dp)) }
             item { ProfileSectionTitle("DOCUMENTATION") }
-            item { ProfileClickItem("ABOUT AGRINOVIS", Icons.Default.Info) { /* Open Dialog */ } }
-            item { ProfileClickItem("HELP & SUPPORT", Icons.Default.Help) { /* Open Dialog */ } }
-            item { ProfileClickItem("PRIVACY PROTOCOL", Icons.Default.Shield) { /* Open Dialog */ } }
+            item {
+                ProfileClickItem("SYSTEM RESEARCH & INFO", Icons.Default.Description) {
+                    showResearchDialog = true
+                }
+            }
+            item { ProfileClickItem("ABOUT AGRINOVIS", Icons.Default.Info) { showAboutDialog = true } }
+            item { ProfileClickItem("HELP & SUPPORT", Icons.Default.Help) { showHelpDialog = true } }
+            item { ProfileClickItem("PRIVACY PROTOCOL", Icons.Default.Shield) { showPrivacyDialog = true } }
 
             item { Spacer(modifier = Modifier.height(48.dp)) }
             item {
