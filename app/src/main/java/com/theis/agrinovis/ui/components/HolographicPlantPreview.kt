@@ -25,7 +25,8 @@ import com.theis.agrinovis.ui.theme.getStageColorTheme
 @Composable
 fun HolographicPlantPreview(
     modifier: Modifier = Modifier,
-    stage: String = "Vegetative"
+    stage: String = "Vegetative",
+    variety: String = "Olmetie"
 ) {
     val stageTheme = getStageColorTheme(stage)
 
@@ -66,12 +67,19 @@ fun HolographicPlantPreview(
         ) {
             Text(
                 text = stageTheme.icon,
-                fontSize = 38.sp
+                fontSize = 32.sp
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = variety.uppercase(),
+                fontSize = 9.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                letterSpacing = 1.sp
+            )
             Text(
                 text = "HOLOGRAM",
-                fontSize = 8.sp,
+                fontSize = 7.sp,
                 fontWeight = FontWeight.Black,
                 color = stageTheme.accentColor.copy(alpha = 0.7f),
                 letterSpacing = 1.2.sp

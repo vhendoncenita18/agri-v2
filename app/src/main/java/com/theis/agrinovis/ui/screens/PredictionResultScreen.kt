@@ -146,7 +146,7 @@ fun PredictionResultScreen(
                             ) {
                                 LettuceScene(
                                     modifier = Modifier.fillMaxSize(),
-                                    modelPath = PlantUtils.getModelPathForStage(plant.stage),
+                                    modelPath = PlantUtils.getModelPathForVarietyAndStage(plant.variety, plant.stage),
                                     scale = PlantUtils.getScaleForStage(plant.stage),
                                     orbitRadius = PlantUtils.getCameraRadiusForStage(plant.stage),
                                     showScanningText = false

@@ -1,14 +1,13 @@
-# Walkthrough - Heading & Maturity Size Adjustment
+# Walkthrough - Neural Analysis 3D Model Variety Fix
 
 ## Overview
 
-Successfully decreased the 3D model scale slightly for the **Heading** and **Maturity** stages in `PlantUtils.kt` so they fit comfortably within the viewer boundaries.
+Successfully updated the **Neural Analysis / Prediction Result Screen** (`PredictionResultScreen.kt`) to render the correct 3D model based on the plant's **variety** (e.g. Orbital) and **growth stage** (e.g. Vegetative) instead of defaulting to Olmetie.
 
 ## Changes
 
-### [PlantUtils.kt](file:///C:/Users/Admin/AndroidStudioProjects/Agrinovis/app/src/main/java/com/theis/agrinovis/ui/utils/PlantUtils.kt)
-- Adjusted `heading` scale from `2.2f` to `1.8f`.
-- Adjusted `maturity` scale from `2.6f` to `2.1f`.
+### [PredictionResultScreen.kt](file:///C:/Users/Admin/AndroidStudioProjects/Agrinovis/app/src/main/java/com/theis/agrinovis/ui/screens/PredictionResultScreen.kt)
+- Updated `LettuceScene` model path to use `PlantUtils.getModelPathForVarietyAndStage(plant.variety, plant.stage)`.
 
 ## Verification Results
 

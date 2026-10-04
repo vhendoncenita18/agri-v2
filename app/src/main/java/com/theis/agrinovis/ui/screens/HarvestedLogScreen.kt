@@ -26,7 +26,9 @@ import com.theis.agrinovis.ui.theme.DarkHologramBG
 import com.theis.agrinovis.ui.theme.GrowthStageBadge
 import com.theis.agrinovis.ui.theme.HarvestedGray
 import com.theis.agrinovis.ui.theme.NeonGreen
+import com.theis.agrinovis.ui.utils.PlantUtils
 import com.theis.agrinovis.ui.viewmodels.PlantsViewModel
+import com.theis.agrinovis.visualization.threeD.LettuceScene
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -182,6 +184,24 @@ fun HistoryDetailDialog(plant: PlantEntity, onDismiss: () -> Unit) {
         },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                // 3D Model Preview based on variety and stage
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.Black.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    LettuceScene(
+                        modifier = Modifier.fillMaxSize(),
+                        modelPath = PlantUtils.getModelPathForVarietyAndStage(plant.variety, plant.stage),
+                        scale = PlantUtils.getScaleForStage(plant.stage),
+                        orbitRadius = PlantUtils.getCameraRadiusForStage(plant.stage),
+                        showScanningText = false
+                    )
+                }
+
                 // Identity
                 DetailInfoItem("VARIETY", plant.variety.uppercase())
                 Row(

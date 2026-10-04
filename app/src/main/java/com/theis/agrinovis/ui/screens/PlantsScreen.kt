@@ -221,7 +221,8 @@ fun PlantCard(plant: PlantEntity, onClick: () -> Unit) {
             ) {
                 HolographicPlantPreview(
                     modifier = Modifier.fillMaxSize(),
-                    stage = plant.stage
+                    stage = plant.stage,
+                    variety = plant.variety
                 )
             }
             
