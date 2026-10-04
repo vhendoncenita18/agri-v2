@@ -23,6 +23,8 @@ import androidx.navigation.NavController
 import com.theis.agrinovis.data.local.entities.PlantEntity
 import com.theis.agrinovis.ui.components.AgrinovisScaffold
 import com.theis.agrinovis.ui.theme.DarkHologramBG
+import com.theis.agrinovis.ui.theme.GrowthStageBadge
+import com.theis.agrinovis.ui.theme.HarvestedGray
 import com.theis.agrinovis.ui.theme.NeonGreen
 import com.theis.agrinovis.ui.viewmodels.PlantsViewModel
 import java.text.SimpleDateFormat
@@ -106,7 +108,7 @@ fun HistoryDateHeader(date: String) {
     ) {
         Text(
             text = date.uppercase(),
-            color = NeonGreen.copy(alpha = 0.6f),
+            color = HarvestedGray,
             fontSize = 11.sp,
             fontWeight = FontWeight.Black,
             letterSpacing = 1.sp
@@ -120,7 +122,7 @@ fun HistoryListRow(plant: PlantEntity, onClick: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = 24.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -130,16 +132,18 @@ fun HistoryListRow(plant: PlantEntity, onClick: () -> Unit) {
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "${plant.variety.uppercase()} • ${plant.dap} DAP",
                 color = Color.White.copy(alpha = 0.5f),
                 fontSize = 11.sp
             )
         }
+        GrowthStageBadge(stage = "Harvested", modifier = Modifier.padding(end = 8.dp))
         Icon(
             imageVector = Icons.Default.ChevronRight,
             contentDescription = null,
-            tint = NeonGreen.copy(alpha = 0.4f),
+            tint = HarvestedGray.copy(alpha = 0.6f),
             modifier = Modifier.size(20.dp)
         )
     }
@@ -180,6 +184,19 @@ fun HistoryDetailDialog(plant: PlantEntity, onDismiss: () -> Unit) {
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 // Identity
                 DetailInfoItem("VARIETY", plant.variety.uppercase())
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "STAGE",
+                        fontSize = 9.sp,
+                        color = Color.White.copy(alpha = 0.4f),
+                        fontWeight = FontWeight.Black
+                    )
+                    GrowthStageBadge(stage = "Harvested")
+                }
                 DetailInfoItem("HARVEST TIME", harvestTime)
                 
                 HorizontalDivider(color = Color.White.copy(alpha = 0.1f))

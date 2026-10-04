@@ -31,7 +31,9 @@ import com.theis.agrinovis.ui.components.ShimmerSkeletonItem
 import com.theis.agrinovis.ui.navigation.Screen
 import com.theis.agrinovis.ui.theme.DarkHologramBG
 import com.theis.agrinovis.ui.theme.GlassBackground
+import com.theis.agrinovis.ui.theme.GrowthStageBadge
 import com.theis.agrinovis.ui.theme.NeonGreen
+import com.theis.agrinovis.ui.theme.getStageColorTheme
 
 @Composable
 fun InsightsScreen(
@@ -141,9 +143,24 @@ fun InsightsContent(
             Text("FLEET METRICS PROFILE", color = NeonGreen, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                OverviewCard("TOTAL", data.totalPlants.toString(), modifier = Modifier.weight(1f))
-                OverviewCard("GROWING", data.healthyGrowingCount.toString(), modifier = Modifier.weight(1f))
-                OverviewCard("READY", data.readyToHarvestCount.toString(), modifier = Modifier.weight(1f), isAlert = false)
+                OverviewCard(
+                    label = "TOTAL", 
+                    value = data.totalPlants.toString(), 
+                    modifier = Modifier.weight(1f),
+                    cardColor = Color(0xFFB388FF) // Vibrant Electric Purple
+                )
+                OverviewCard(
+                    label = "GROWING", 
+                    value = data.healthyGrowingCount.toString(), 
+                    modifier = Modifier.weight(1f),
+                    cardColor = Color(0xFF00B0FF) // Electric Blue (User requested)
+                )
+                OverviewCard(
+                    label = "READY", 
+                    value = data.readyToHarvestCount.toString(), 
+                    modifier = Modifier.weight(1f),
+                    cardColor = NeonGreen // Neon Green for Harvest Ready
+                )
             }
         }
 
@@ -152,15 +169,16 @@ fun InsightsContent(
             HolographicCard(title = "Growth Stage Allocation") {
                 data.stageDistribution.forEach { (stage, count) ->
                     val ratio = if (data.totalPlants > 0) count.toFloat() / data.totalPlants else 0f
+                    val stageTheme = getStageColorTheme(stage)
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(stage, color = Color.White, fontSize = 13.sp)
-                            Text("$count plants", color = NeonGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            Text("${stageTheme.icon} ${stage.uppercase()}", color = Color.White, fontSize = 13.sp)
+                            Text("$count plants", color = stageTheme.accentColor, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                         LinearProgressIndicator(
                             progress = { ratio },
                             modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(6.dp).clip(RoundedCornerShape(3.dp)),
-                            color = NeonGreen,
+                            color = stageTheme.accentColor,
                             trackColor = Color.White.copy(alpha = 0.1f)
                         )
                     }
@@ -263,12 +281,13 @@ fun InsightsContent(
             }
         } else {
             items(displayItems) { crop ->
+                val cropStageTheme = getStageColorTheme(crop.stage)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
                         .background(GlassBackground)
-                        .border(1.dp, NeonGreen.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                        .border(1.dp, cropStageTheme.borderColor, RoundedCornerShape(16.dp))
                         .padding(14.dp)
                 ) {
                     Row(
@@ -278,17 +297,22 @@ fun InsightsContent(
                     ) {
                         Column {
                             Text("ID: ${crop.id} (${crop.variety})", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Text("Stage: ${crop.stage} | Est: ${crop.estHarvestDate}", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Stage:", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                                GrowthStageBadge(stage = crop.stage, fontSize = 7.sp)
+                                Text("| Est: ${crop.estHarvestDate}", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp)
+                            }
                         }
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (crop.daysToHarvest <= 3) Color.Red.copy(alpha = 0.2f) else NeonGreen.copy(alpha = 0.1f))
+                                .background(if (crop.daysToHarvest <= 3) Color.Red.copy(alpha = 0.2f) else cropStageTheme.containerColor)
                                 .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Text(
                                 text = "${crop.daysToHarvest}d left",
-                                color = if (crop.daysToHarvest <= 3) Color.Red else NeonGreen,
+                                color = if (crop.daysToHarvest <= 3) Color.Red else cropStageTheme.accentColor,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Black
                             )
@@ -322,19 +346,24 @@ fun InsightsContent(
 }
 
 @Composable
-fun OverviewCard(label: String, value: String, modifier: Modifier = Modifier, isAlert: Boolean = false) {
+fun OverviewCard(
+    label: String, 
+    value: String, 
+    modifier: Modifier = Modifier, 
+    cardColor: Color = NeonGreen
+) {
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(16.dp))
             .background(GlassBackground)
-            .border(1.dp, (if (isAlert) Color.Red else NeonGreen).copy(alpha = 0.3f), RoundedCornerShape(16.dp))
+            .border(1.dp, cardColor.copy(alpha = 0.3f), RoundedCornerShape(16.dp))
             .padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(label, color = Color.White.copy(alpha = 0.5f), fontSize = 10.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(4.dp))
-            Text(value, color = if (isAlert) Color.Red else NeonGreen, fontSize = 24.sp, fontWeight = FontWeight.Black)
+            Text(value, color = cardColor, fontSize = 24.sp, fontWeight = FontWeight.Black)
         }
     }
 }

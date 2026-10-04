@@ -9,6 +9,7 @@ import com.theis.agrinovis.data.model.Weather
 import com.theis.agrinovis.data.model.WeatherResponse
 import com.theis.agrinovis.data.model.Wind
 import com.theis.agrinovis.data.remote.RetrofitClient
+import com.theis.agrinovis.data.remote.WeatherConfig
 import com.theis.agrinovis.ui.utils.LocationHelper
 import com.theis.agrinovis.data.model.NotificationModel
 import com.theis.agrinovis.data.model.NotificationType
@@ -99,15 +100,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             _isLoadingWeather.value = true
             try {
                 if (city.isEmpty()) {
-                    // Fast 1-second timeout for hardware GPS lock to avoid hanging the UI
-                    val location = withTimeoutOrNull(1000) {
+                    // Timeout for hardware GPS lock
+                    val location = withTimeoutOrNull(WeatherConfig.GPS_TIMEOUT_MS) {
                         LocationHelper.getLastLocation(getApplication())
                     }
                     if (location != null) {
                         val response = RetrofitClient.weatherService.getWeatherByCoords(
                             lat = location.latitude,
                             lon = location.longitude,
-                            apiKey = "YOUR_API_KEY_HERE"
+                            apiKey = WeatherConfig.API_KEY
                         )
                         _weatherState.value = response
                         com.theis.agrinovis.data.session.MonitoringSession.latestWeather = response
@@ -119,7 +120,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 val targetCity = if (city.isEmpty()) "Manila" else city
                 val response = RetrofitClient.weatherService.getWeather(
                     city = targetCity,
-                    apiKey = "YOUR_API_KEY_HERE"
+                    apiKey = WeatherConfig.API_KEY
                 )
                 _weatherState.value = response
                 com.theis.agrinovis.data.session.MonitoringSession.latestWeather = response
@@ -130,7 +131,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     wind = Wind(speed = 2.4),
                     weather = listOf(Weather(main = "Cloudy", description = "Local backup node active")),
                     rain = null,
-                    name = "Clarin (Local)"
+                    name = "Detecting Location..."
                 )
                 _weatherState.value = fallbackResponse
                 com.theis.agrinovis.data.session.MonitoringSession.latestWeather = fallbackResponse
@@ -144,15 +145,15 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _isLoadingWeather.value = true
             try {
-                // Fast 1-second timeout for hardware GPS lock
-                val location = withTimeoutOrNull(1000) {
+                // Timeout for hardware GPS lock
+                val location = withTimeoutOrNull(WeatherConfig.GPS_TIMEOUT_MS) {
                     LocationHelper.getLastLocation(getApplication())
                 }
                 if (location != null) {
                     val response = RetrofitClient.weatherService.getWeatherByCoords(
                         lat = location.latitude,
                         lon = location.longitude,
-                        apiKey = "YOUR_API_KEY_HERE"
+                        apiKey = WeatherConfig.API_KEY
                     )
                     _weatherState.value = response
                     com.theis.agrinovis.data.session.MonitoringSession.latestWeather = response
@@ -162,7 +163,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         wind = Wind(speed = 2.4),
                         weather = listOf(Weather(main = "Cloudy", description = "Local backup node active")),
                         rain = null,
-                        name = "Clarin (Local)"
+                        name = "Detecting Location..."
                     )
                     _weatherState.value = fallbackResponse
                     com.theis.agrinovis.data.session.MonitoringSession.latestWeather = fallbackResponse
@@ -173,7 +174,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     wind = Wind(speed = 2.4),
                     weather = listOf(Weather(main = "Cloudy", description = "Local backup node active")),
                     rain = null,
-                    name = "Clarin (Local)"
+                    name = "Detecting Location..."
                 )
                 _weatherState.value = fallbackResponse
                 com.theis.agrinovis.data.session.MonitoringSession.latestWeather = fallbackResponse

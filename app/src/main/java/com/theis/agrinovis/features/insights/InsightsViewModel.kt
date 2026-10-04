@@ -160,7 +160,7 @@ object InsightsCalculator {
         }
 
         // Variety Distribution counts mapping
-        val standardVarieties = listOf("Green Coral", "Prizehead", "Olmetie")
+        val standardVarieties = listOf("Olmetie", "Limambo", "Orbital")
         val varietyMap = standardVarieties.associateWith { varietyName ->
             activePlants.count { it.variety.equals(varietyName, ignoreCase = true) }
         }

@@ -1,14 +1,17 @@
 package com.theis.agrinovis.ui.screens
 
 import android.app.DatePickerDialog
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,7 +27,10 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.theis.agrinovis.data.local.entities.PlantEntity
 import com.theis.agrinovis.data.remote.RetrofitClient
+import com.theis.agrinovis.data.remote.WeatherConfig
 import com.theis.agrinovis.data.session.MonitoringSession
+import com.theis.agrinovis.ml.prediction.PredictionInput
+import com.theis.agrinovis.ml.prediction.TFLitePredictionEngine
 import com.theis.agrinovis.ui.components.AgrinovisScaffold
 import com.theis.agrinovis.ui.components.futuristicTextFieldColors
 import com.theis.agrinovis.ui.navigation.Screen
@@ -44,13 +50,25 @@ fun VerificationScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    val diameterCv = MonitoringSession.diameterCvResult
+    val heightCv = MonitoringSession.heightCvResult
+    val isCvActive = (diameterCv?.isSuccessful == true) || (heightCv?.isSuccessful == true)
+
     // Form States
-    var height by remember { mutableStateOf("12.4") }
-    var diameter by remember { mutableStateOf("20.1") }
+    var height by remember {
+        mutableStateOf(
+            if (heightCv?.isSuccessful == true) "%.1f".format(Locale.US, heightCv.heightCm) else "12.4"
+        )
+    }
+    var diameter by remember {
+        mutableStateOf(
+            if (diameterCv?.isSuccessful == true) "%.1f".format(Locale.US, diameterCv.diameterCm) else "20.1"
+        )
+    }
     var leafCount by remember { mutableStateOf("") }
     
     // Variety Dropdown
-    val varieties = listOf("Green Coral", "Prizehead", "Olmetie")
+    val varieties = listOf("Olmetie", "Limambo", "Orbital")
     var varietyExpanded by remember { mutableStateOf(false) }
     var variety by remember { mutableStateOf(varieties[0]) }
     
@@ -104,23 +122,23 @@ fun VerificationScreen(navController: NavController) {
         scope.launch {
             isFetchingWeather = true
             try {
-                // 1. Fast 1-second timeout for hardware GPS lock
-                val location = withTimeoutOrNull(1000) {
+                // Timeout for hardware GPS lock
+                val location = withTimeoutOrNull(WeatherConfig.GPS_TIMEOUT_MS) {
                     LocationHelper.getLastLocation(context)
                 }
                 
                 val response = if (location != null) {
-                    // 2. Fetch by coordinates if GPS locked
+                    // Fetch by coordinates if GPS locked
                     RetrofitClient.weatherService.getWeatherByCoords(
                         lat = location.latitude,
                         lon = location.longitude,
-                        apiKey = "YOUR_API_KEY_HERE"
+                        apiKey = WeatherConfig.API_KEY
                     )
                 } else {
-                    // 3. Fallback to default search if no GPS
+                    // Fallback to default search if no GPS
                     RetrofitClient.weatherService.getWeather(
                         if (locationName.isNotEmpty()) locationName else "Manila", 
-                        "YOUR_API_KEY_HERE"
+                        WeatherConfig.API_KEY
                     )
                 }
 
@@ -193,6 +211,49 @@ fun VerificationScreen(navController: NavController) {
                         color = NeonGreen,
                         letterSpacing = 1.sp
                     )
+                }
+
+                // AI STATUS BANNER
+                item {
+                    if (isCvActive) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = NeonGreen.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, NeonGreen.copy(alpha = 0.4f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = NeonGreen, modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text("AI EXTRACTION ACTIVE", color = NeonGreen, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                                    Text("Computer Vision extracted diameter & height automatically.", color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    } else {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = Color(0xFFFFB300).copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFB300).copy(alpha = 0.4f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text("AI MODEL TRAINING IN PROGRESS", color = Color(0xFFFFB300), fontWeight = FontWeight.Black, fontSize = 12.sp)
+                                    Text("CV model ('models/cv_model.tflite') is pending research training. Baseline values loaded for manual verification.", color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp)
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Measurement Fields
@@ -475,29 +536,48 @@ fun VerificationScreen(navController: NavController) {
             Button(
                 onClick = {
                     try {
-                        val entity = PlantEntity(
-                            id = "L-${UUID.randomUUID().toString().take(6).uppercase()}", // Unique Auto-ID
-                            variety = variety,
-                            stage = growthStage,
-                            plantedDate = plantedDate,
+                        val input = PredictionInput(
                             dap = dap.toIntOrNull() ?: 0,
                             leafCount = leafCount.toIntOrNull() ?: 0,
-                            height = height.toDoubleOrNull() ?: 0.0,
-                            diameter = diameter.toDoubleOrNull() ?: 0.0,
-                            temp = temp.toDoubleOrNull() ?: 0.0,
-                            humidity = humidity.toIntOrNull() ?: 0,
-                            pressure = pressure.toIntOrNull() ?: 0,
-                            windSpeed = windSpeed.toDoubleOrNull() ?: 0.0,
-                            rainfall = rainfall.toDoubleOrNull() ?: 0.0,
-                            condition = condition,
-                            harvestStatus = if ((dap.toIntOrNull() ?: 0) >= 45) "Ready to Harvest" else "Growing",
-                            estHarvestDate = "Sep 18, 2026", // Mock result
-                            daysToHarvest = 8 // Mock result
+                            diameterCm = diameter.toFloatOrNull() ?: 0f,
+                            heightCm = height.toFloatOrNull() ?: 0f,
+                            temperature = temp.toFloatOrNull() ?: 28.5f,
+                            humidity = humidity.toFloatOrNull() ?: 65f,
+                            windSpeed = windSpeed.toFloatOrNull() ?: 3.2f,
+                            pressure = pressure.toFloatOrNull() ?: 1012f,
+                            variety = variety,
+                            growthStage = growthStage,
+                            recordDateIso = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
                         )
-                        MonitoringSession.currentPlant = entity
-                        navController.navigate(Screen.PredictionResult.route)
+
+                        scope.launch {
+                            val predictionEngine = TFLitePredictionEngine(context)
+                            val predictionResult = predictionEngine.predict(input)
+
+                            val entity = PlantEntity(
+                                id = "L-${UUID.randomUUID().toString().take(6).uppercase()}",
+                                variety = variety,
+                                stage = if (predictionResult.isSuccessful) predictionResult.predictedStage else growthStage,
+                                plantedDate = plantedDate,
+                                dap = dap.toIntOrNull() ?: 0,
+                                leafCount = leafCount.toIntOrNull() ?: 0,
+                                height = height.toDoubleOrNull() ?: 0.0,
+                                diameter = diameter.toDoubleOrNull() ?: 0.0,
+                                temp = temp.toDoubleOrNull() ?: 0.0,
+                                humidity = humidity.toIntOrNull() ?: 0,
+                                pressure = pressure.toIntOrNull() ?: 0,
+                                windSpeed = windSpeed.toDoubleOrNull() ?: 0.0,
+                                rainfall = rainfall.toDoubleOrNull() ?: 0.0,
+                                condition = condition,
+                                harvestStatus = if ((dap.toIntOrNull() ?: 0) >= 45) "Ready to Harvest" else "Growing",
+                                estHarvestDate = if (predictionResult.isSuccessful && predictionResult.estimatedHarvestDate.isNotBlank()) predictionResult.estimatedHarvestDate else "Sep 18, 2026",
+                                daysToHarvest = if (predictionResult.isSuccessful) predictionResult.daysToHarvest else 8
+                            )
+                            MonitoringSession.currentPlant = entity
+                            navController.navigate(Screen.PredictionResult.route)
+                        }
                     } catch (e: Exception) {
-                        // Log or handle error to prevent crash
+                        Log.e("VerificationScreen", "Error during prediction execution: ${e.message}")
                     }
                 },
                 modifier = Modifier

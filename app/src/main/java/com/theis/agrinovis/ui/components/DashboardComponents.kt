@@ -38,6 +38,7 @@ import com.theis.agrinovis.data.local.entities.PlantEntity
 import com.theis.agrinovis.ui.theme.DarkHologramBG
 import com.theis.agrinovis.ui.theme.GlassBackground
 import com.theis.agrinovis.ui.theme.NeonGreen
+import com.theis.agrinovis.ui.theme.getStageColorTheme
 import com.theis.agrinovis.ui.utils.PlantUtils
 import com.theis.agrinovis.visualization.threeD.LettuceScene
 
@@ -112,24 +113,29 @@ fun DashboardHeader(
             Spacer(modifier = Modifier.height(20.dp))
 
             // System Quick Status (Replacing Search Bar)
+            val isOffline = com.theis.agrinovis.data.session.MonitoringSession.isOfflineMode
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
                     .clip(RoundedCornerShape(24.dp))
                     .background(Color.White.copy(alpha = 0.05f))
-                    .border(1.dp, NeonGreen.copy(alpha = 0.2f), RoundedCornerShape(24.dp))
+                    .border(
+                        1.dp,
+                        if (isOffline) Color(0xFFFFB300).copy(alpha = 0.4f) else NeonGreen.copy(alpha = 0.2f),
+                        RoundedCornerShape(24.dp)
+                    )
                     .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
                     modifier = Modifier.size(8.dp),
                     shape = CircleShape,
-                    color = NeonGreen
+                    color = if (isOffline) Color(0xFFFFB300) else NeonGreen
                 ) {}
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "System Online",
+                    text = if (isOffline) "⚡ System Local (Offline Mode)" else "System Online",
                     color = Color.White,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -232,6 +238,7 @@ fun PlantCategorySection(
 
 @Composable
 fun PlantCircleItem(name: String, onClick: () -> Unit) {
+    val stageTheme = getStageColorTheme(name)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.clickable { onClick() }
@@ -240,11 +247,11 @@ fun PlantCircleItem(name: String, onClick: () -> Unit) {
             modifier = Modifier
                 .size(80.dp) // Increased size
                 .clip(RoundedCornerShape(16.dp))
-                .background(NeonGreen.copy(alpha = 0.05f))
-                .border(0.5.dp, NeonGreen.copy(alpha = 0.2f), RoundedCornerShape(16.dp)),
+                .background(stageTheme.containerColor)
+                .border(0.5.dp, stageTheme.borderColor, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "🥬", fontSize = 32.sp) // Increased emoji size
+            Text(text = stageTheme.icon, fontSize = 32.sp) // Dynamic stage icon
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = name, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
@@ -252,7 +259,14 @@ fun PlantCircleItem(name: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun ThreeDLettucePreview(stage: String) {
+fun ThreeDLettucePreview(
+    stage: String,
+    onStageChange: (String) -> Unit = {}
+) {
+    var showStageMenu by remember { mutableStateOf(false) }
+    var selectedVariety by remember { mutableStateOf("Olmetie") }
+    val stagesList = remember { listOf("SEEDLING", "VEGETATIVE", "HEADING", "MATURITY") }
+
     val infiniteTransition = rememberInfiniteTransition(label = "hologramTransition")
     
     val floatingOffset by infiniteTransition.animateFloat(
@@ -307,12 +321,13 @@ fun ThreeDLettucePreview(stage: String) {
             color = Color.White,
             letterSpacing = 2.sp
         )
+
         Spacer(modifier = Modifier.height(16.dp))
 
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(450.dp) // Increased height as requested
+                .height(450.dp)
                 .clip(RoundedCornerShape(32.dp))
                 .background(DarkHologramBG)
                 .drawBehind {
@@ -360,13 +375,13 @@ fun ThreeDLettucePreview(stage: String) {
                 Canvas(modifier = Modifier.size(240.dp).graphicsLayer { rotationZ = hudRotation }) {
                     val centerPt = Offset(size.width / 2, size.height / 2 + 10.dp.toPx())
                     drawCircle(
-                        color = NeonGreen.copy(alpha = 0.15f), // Dimmed from 0.3f
+                        color = NeonGreen.copy(alpha = 0.15f),
                         radius = 80.dp.toPx(),
                         center = centerPt,
                         style = Stroke(width = 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f))
                     )
                     drawCircle(
-                        color = NeonGreen.copy(alpha = 0.1f), // Dimmed from 0.15f
+                        color = NeonGreen.copy(alpha = 0.1f),
                         radius = 100.dp.toPx(),
                         center = centerPt,
                         style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(40f, 20f), 0f))
@@ -385,7 +400,7 @@ fun ThreeDLettucePreview(stage: String) {
                     drawPath(
                         path = beamPath,
                         brush = Brush.verticalGradient(
-                            colors = listOf(NeonGreen.copy(alpha = 0f), NeonGreen.copy(alpha = 0.15f * beamPulse)), // Dimmed from 0.2f
+                            colors = listOf(NeonGreen.copy(alpha = 0f), NeonGreen.copy(alpha = 0.15f * beamPulse)),
                             startY = 0f,
                             endY = size.height
                         )
@@ -396,22 +411,29 @@ fun ThreeDLettucePreview(stage: String) {
             // 3. Floating Particles (Bokeh)
             ParticleSystem(modifier = Modifier.fillMaxSize())
 
-            // THE 3D LETTUCE SCENE
+            // THE 3D LETTUCE SCENE (Increased size for enhanced visibility)
             Box(
                 modifier = Modifier
-                    .size(450.dp) // Increased size
+                    .size(380.dp)
                     .graphicsLayer {
                         translationY = floatingOffset
                     },
                 contentAlignment = Alignment.Center
             ) {
-                // Map stage to model path for the dashboard hologram
-                val modelPath = PlantUtils.getModelPathForStage(stage)
+                val modelPath = PlantUtils.getModelPathForVarietyAndStage(selectedVariety, stage)
+                val stageScale = PlantUtils.getScaleForStage(stage)
+                val orbitRadius = PlantUtils.getCameraRadiusForStage(stage)
 
                 LettuceScene(
                     modifier = Modifier.fillMaxSize(),
                     modelPath = modelPath,
-                    scale = 1.6f // Adjusted to match the provided image size
+                    initialStage = stage,
+                    scale = stageScale,
+                    orbitRadius = orbitRadius,
+                    enableVarietySelector = true,
+                    initialVariety = selectedVariety,
+                    onVarietySelected = { selectedVariety = it },
+                    enableControls = false
                 )
                 
                 // Scan Line Matrix Overlay
@@ -429,22 +451,75 @@ fun ThreeDLettucePreview(stage: String) {
                 }
             }
 
+            val stageTheme = getStageColorTheme(stage)
+
+            // Interactive Status Badge with Growth Stage Picker
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 20.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(NeonGreen.copy(alpha = 0.15f))
-                    .border(1.dp, NeonGreen.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 24.dp, vertical = 10.dp)
             ) {
-                Text(
-                    text = "STATUS: ${stage.uppercase()}",
-                    color = NeonGreen,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 12.sp,
-                    letterSpacing = 2.sp
-                )
+                Surface(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable { showStageMenu = true },
+                    color = stageTheme.containerColor,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, stageTheme.borderColor)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "${stageTheme.icon} STATUS: ${stage.uppercase()}",
+                            color = stageTheme.accentColor,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 12.sp,
+                            letterSpacing = 1.5.sp
+                        )
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Select Growth Stage",
+                            tint = stageTheme.accentColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = showStageMenu,
+                    onDismissRequest = { showStageMenu = false },
+                    modifier = Modifier
+                        .background(DarkHologramBG)
+                        .border(1.dp, NeonGreen.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                ) {
+                    stagesList.forEach { stageOption ->
+                        val isSelected = stageOption.equals(stage, ignoreCase = true)
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    val optionTheme = getStageColorTheme(stageOption)
+                                    Text(text = optionTheme.icon, fontSize = 14.sp)
+                                    Text(
+                                        text = stageOption,
+                                        color = if (isSelected) NeonGreen else Color.White,
+                                        fontWeight = if (isSelected) FontWeight.Black else FontWeight.Normal,
+                                        fontSize = 12.sp,
+                                        letterSpacing = 1.sp
+                                    )
+                                }
+                            },
+                            onClick = {
+                                onStageChange(stageOption)
+                                showStageMenu = false
+                            }
+                        )
+                    }
+                }
             }
         }
     }
@@ -552,7 +627,7 @@ fun HarvestPredictionsSummary(plants: List<PlantEntity>) {
 
 @Composable
 fun LettuceVarietyCategorySection(onItemClick: (String) -> Unit) {
-    val varieties = listOf("GREEN CORAL", "PRIZEHEAD", "OLMETIE")
+    val varieties = listOf("OLMETIE", "LIMAMBO", "ORBITAL")
     Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)) {
         Text(
             text = "Lettuce Varieties", 

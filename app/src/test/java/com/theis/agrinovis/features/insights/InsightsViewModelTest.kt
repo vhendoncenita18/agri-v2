@@ -12,20 +12,20 @@ class InsightsViewModelTest {
         // Arrange
         val testCrops = listOf(
             PlantEntity(
-                id = "L001", variety = "Green Coral", stage = "Seedling",
+                id = "L001", variety = "Olmetie", stage = "Seedling",
                 plantedDate = "Sep 01", dap = 5, leafCount = 4, height = 10.0, diameter = 12.0,
                 temp = 28.0, humidity = 65, pressure = 1012, windSpeed = 2.0, rainfall = 0.0,
                 condition = "Clear", harvestStatus = "Growing", estHarvestDate = "Sep 30", daysToHarvest = 15
             ),
             PlantEntity(
-                id = "L002", variety = "Prizehead", stage = "Maturity",
+                id = "L002", variety = "Limambo", stage = "Maturity",
                 plantedDate = "Aug 15", dap = 20, leafCount = 12, height = 15.0, diameter = 18.0,
                 temp = 29.0, humidity = 70, pressure = 1012, windSpeed = 3.0, rainfall = 0.0,
                 condition = "Clear", harvestStatus = "Ready to Harvest", estHarvestDate = "Sep 16", daysToHarvest = 2
             ),
             // Ready to harvest plant (DAP >= 45)
             PlantEntity(
-                id = "L004", variety = "Green Coral", stage = "Maturity",
+                id = "L004", variety = "Orbital", stage = "Maturity",
                 plantedDate = "Jul 01", dap = 45, leafCount = 15, height = 18.0, diameter = 22.0,
                 temp = 27.5, humidity = 68, pressure = 1011, windSpeed = 1.5, rainfall = 0.0,
                 condition = "Cloudy", harvestStatus = "Ready to Harvest", estHarvestDate = "Sep 15", daysToHarvest = 0

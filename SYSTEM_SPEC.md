@@ -598,6 +598,37 @@ The status is determined primarily by the lettuce age (Days After Planting - DAP
 4. Upon harvest:
    - The application sends a confirmation notification.
    - The status is updated to "Harvested" in the database.
+
+---
+
+# 23. 3D Model Asset Matrix Specifications
+
+The 3D visualization engine supports dedicated `.glb` 3D model assets for each supported lettuce variety across each growth stage:
+
+## Variety-Stage 3D Model Matrix (12 Total `.glb` Assets)
+Each of the 3 official varieties (`Olmetie`, `Limambo`, `Orbital`) has 4 dedicated 3D models (one per growth stage):
+
+### Olmetie
+- `models/olmetie_seedling.glb`
+- `models/olmetie_vegetative.glb`
+- `models/olmetie_heading.glb`
+- `models/olmetie_maturity.glb`
+
+### Limambo
+- `models/limambo_seedling.glb`
+- `models/limambo_vegetative.glb`
+- `models/limambo_heading.glb`
+- `models/limambo_maturity.glb`
+
+### Orbital
+- `models/orbital_seedling.glb`
+- `models/orbital_vegetative.glb`
+- `models/orbital_heading.glb`
+- `models/orbital_maturity.glb`
+
+## Asset Resolution Engine
+`PlantUtils.getModelPathForVarietyAndStage(variety, stage)` resolves variety-stage paths with fallback to stage models (`models/seedling.glb`, `models/vegetative.glb`, etc.).
+
    - The record is preserved for historical growth and yield analysis.
 
 Final statuses must be defined according to the actual research workflow. For testing purposes, the 45-day threshold is used as the standard maturity marker.

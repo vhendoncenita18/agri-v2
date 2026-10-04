@@ -17,6 +17,7 @@ import com.theis.agrinovis.data.worker.SyncPlantsWorker
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withTimeoutOrNull
 
 enum class SyncStatus {
     SYNCED_ONLINE,
@@ -39,18 +40,26 @@ class PlantRepository(private val plantDao: PlantDao) {
         plantDao.insertPlant(localPlant)
         Log.d("PlantRepository", "Saved plant ${localPlant.id} locally to Room database.")
 
-        // 2. ATTEMPT IMMEDIATE SUPABASE SYNC
+        // 2. ATTEMPT IMMEDIATE SUPABASE SYNC (with 3.5s timeout safeguard)
         return try {
             if (user != null) {
                 Log.d("PlantRepository", "Attempting immediate online Supabase upload for plant ${localPlant.id}...")
                 
-                SupabaseClient.client.postgrest["plants"].upsert(localPlant.toDto())
+                val synced = withTimeoutOrNull(3500L) {
+                    SupabaseClient.client.postgrest["plants"].upsert(localPlant.toDto())
+                    true
+                }
                 
-                // Mark as synced in local Room DB
-                plantDao.markAsSynced(localPlant.id)
-                Log.d("PlantRepository", "Successfully synced plant ${localPlant.id} to Supabase online!")
-                
-                Result.success(SyncStatus.SYNCED_ONLINE)
+                if (synced == true) {
+                    // Mark as synced in local Room DB
+                    plantDao.markAsSynced(localPlant.id)
+                    Log.d("PlantRepository", "Successfully synced plant ${localPlant.id} to Supabase online!")
+                    Result.success(SyncStatus.SYNCED_ONLINE)
+                } else {
+                    Log.w("PlantRepository", "Supabase online sync timed out (>3.5s). Scheduling background worker...")
+                    context?.let { enqueueSyncWorker(it) }
+                    Result.success(SyncStatus.SAVED_LOCALLY_PENDING_SYNC)
+                }
             } else {
                 // User offline or not authenticated -> Queue WorkManager background sync
                 context?.let { enqueueSyncWorker(it) }
@@ -139,11 +148,42 @@ class PlantRepository(private val plantDao: PlantDao) {
         }
     }
 
-    suspend fun delete(plant: PlantEntity) {
+    suspend fun delete(plant: PlantEntity): Result<Unit> {
+        // 1. Instant Local Room Deletion
         plantDao.deletePlant(plant)
+        Log.d("PlantRepository", "Deleted plant ${plant.id} locally from Room database.")
+
+        // 2. Remote Supabase Deletion if user authenticated
+        return try {
+            val user = SupabaseClient.client.auth.currentUserOrNull()
+            if (user != null) {
+                withTimeoutOrNull(3500L) {
+                    SupabaseClient.client.postgrest["plants"].delete {
+                        filter {
+                            eq("id", plant.id)
+                        }
+                    }
+                }
+                Log.d("PlantRepository", "Successfully deleted plant ${plant.id} from Supabase online.")
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("PlantRepository", "Failed to delete plant ${plant.id} from Supabase: ${e.message}", e)
+            Result.success(Unit)
+        }
     }
     
     suspend fun getPlantById(id: String): PlantEntity? {
         return plantDao.getPlantById(id)
+    }
+
+    suspend fun forceSync(): Result<Int> {
+        val syncResult = syncUnsyncedPlants()
+        val fetchResult = fetchRemotePlants()
+        return if (syncResult.isSuccess || fetchResult.isSuccess) {
+            Result.success(syncResult.getOrDefault(0))
+        } else {
+            Result.failure(syncResult.exceptionOrNull() ?: Exception("Sync failed"))
+        }
     }
 }

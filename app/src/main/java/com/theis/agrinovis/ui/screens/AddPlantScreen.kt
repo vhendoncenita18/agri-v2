@@ -38,7 +38,7 @@ fun AddPlantScreen(
     viewModel: PlantsViewModel = viewModel()
 ) {
     var plantId by remember { mutableStateOf("") }
-    var variety by remember { mutableStateOf("Green Coral") }
+    var variety by remember { mutableStateOf("Olmetie") }
     var plantedDate by remember { mutableStateOf("") }
     var location by remember { mutableStateOf("") }
     
@@ -151,7 +151,7 @@ fun AddPlantScreen(
                     val finalId = if (plantId.isBlank()) "L-${UUID.randomUUID().toString().take(6).uppercase()}" else plantId.trim()
                     val newPlant = PlantEntity(
                         id = finalId,
-                        variety = if (variety.isBlank()) "Green Coral" else variety.trim(),
+                        variety = if (variety.isBlank()) "Olmetie" else variety.trim(),
                         stage = "Seedling",
                         plantedDate = if (plantedDate.isBlank()) "Today" else plantedDate.trim(),
                         dap = 1,

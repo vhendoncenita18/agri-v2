@@ -46,7 +46,7 @@ fun EditPlantScreen(
     var diameter by remember { mutableStateOf("") }
     
     // Form States - Identity
-    val varieties = listOf("Green Coral", "Prizehead", "Olmetie")
+    val varieties = listOf("Olmetie", "Limambo", "Orbital")
     var varietyExpanded by remember { mutableStateOf(false) }
     var variety by remember { mutableStateOf(varieties[0]) }
     

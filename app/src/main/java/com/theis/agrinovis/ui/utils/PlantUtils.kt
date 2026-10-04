@@ -9,15 +9,58 @@ data class StageRecommendation(
 )
 
 object PlantUtils {
-    fun getModelPathForStage(stage: String): String {
-        return when (stage.lowercase()) {
-            "seedling" -> "models/seedling.glb"
-            "vegetative" -> "models/vegetative.glb"
-            "heading" -> "models/heading.glb"
-            "maturity" -> "models/maturity.glb"
-            "harvest ready" -> "models/maturity.glb"
-            else -> "models/lettuce.glb"
+    fun getModelPathForVarietyAndStage(variety: String, stage: String): String {
+        val cleanVariety = variety.trim().lowercase()
+        val cleanStage = when (stage.trim().lowercase()) {
+            "seedling" -> "seedling"
+            "vegetative", "early growth" -> "vegetative"
+            "heading", "developing", "growing" -> "heading"
+            "maturity", "mature", "harvest ready", "ready to harvest" -> "maturity"
+            else -> "vegetative"
         }
+
+        val varietyPrefix = when {
+            cleanVariety.contains("olmetie") -> "olmetie"
+            cleanVariety.contains("limambo") || cleanVariety.contains("limambi") -> "limambo"
+            cleanVariety.contains("orbital") -> "orbital"
+            else -> "olmetie"
+        }
+
+        return "models/${varietyPrefix}_${cleanStage}.glb"
+    }
+
+    fun getModelPathForStage(stage: String): String {
+        return when (stage.trim().lowercase()) {
+            "seedling" -> "models/olmetie_seedling.glb"
+            "vegetative", "early growth" -> "models/olmetie_vegetative.glb"
+            "heading", "developing", "growing" -> "models/olmetie_heading.glb"
+            "maturity", "mature", "harvest ready", "ready to harvest" -> "models/olmetie_maturity.glb"
+            else -> "models/olmetie_vegetative.glb"
+        }
+    }
+
+    fun getScaleForStage(stage: String): Float {
+        return when (stage.trim().lowercase()) {
+            "seedling" -> 1.5f
+            "vegetative", "early growth" -> 1.9f
+            "heading", "developing", "growing" -> 1.8f
+            "maturity", "mature", "harvest ready", "ready to harvest" -> 1.8f
+            else -> 2.0f
+        }
+    }
+
+    fun getCameraRadiusForStage(stage: String): Float {
+        return when (stage.trim().lowercase()) {
+            "seedling" -> 3.0f
+            "vegetative", "early growth" -> 3.2f
+            "heading", "developing", "growing" -> 3.5f
+            "maturity", "mature", "harvest ready", "ready to harvest" -> 3.8f
+            else -> 3.5f
+        }
+    }
+
+    fun getDefaultRotationForModel(modelPath: String): Triple<Float, Float, Float> {
+        return Triple(-90f, 0f, 0f)
     }
 
     fun getRecommendationsForStage(stage: String): StageRecommendation {

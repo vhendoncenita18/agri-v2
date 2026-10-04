@@ -42,6 +42,14 @@ android {
             useLegacyPackaging = true
         }
     }
+    androidResources {
+        noCompress += "tflite"
+    }
+}
+
+configurations.all {
+    exclude(group = "org.tensorflow", module = "tensorflow-lite-api")
+    exclude(group = "org.tensorflow", module = "tensorflow-lite")
 }
 
 dependencies {
@@ -55,7 +63,9 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.material.icons.extended)
-    implementation(libs.sceneview)
+    implementation(libs.sceneview) {
+        exclude(group = "com.google.ai.edge.litert")
+    }
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
@@ -80,6 +90,10 @@ dependencies {
 
     // WorkManager Background Sync
     implementation(libs.androidx.work.runtime.ktx)
+
+    // TensorFlow Lite / LiteRT Engine
+    implementation(libs.tflite.core)
+    implementation(libs.tflite.support)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

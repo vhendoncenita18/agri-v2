@@ -52,17 +52,9 @@ fun DashboardScreen(
         }
     }
 
-    // Growth Stages for cycling
+    // Growth Stages for viewing
     val stages = listOf("Seedling", "Vegetative", "Heading", "Maturity")
-    var stageIndex by remember { mutableIntStateOf(0) }
-
-    // Every 5 seconds, change the 3D model stage
-    LaunchedEffect(Unit) {
-        while (true) {
-            kotlinx.coroutines.delay(5000)
-            stageIndex = (stageIndex + 1) % stages.size
-        }
-    }
+    var stageIndex by remember { mutableIntStateOf(1) } // Default to Vegetative
 
     val currentStage = stages[stageIndex]
 
@@ -105,12 +97,13 @@ fun DashboardScreen(
 
     val infoMapping = mapOf(
         "SEEDLING" to "The earliest stage after germination. Focus on root development and initial leaf emergence.",
-        "EARLY GROWTH" to "Rapid expansion of leaves. Monitoring nutrient uptake is critical here.",
-        "VEGETATIVE" to "Main growth phase where the lettuce gains most of its mass and volume.",
-        "MATURE" to "Harvest-ready stage. Leaves are fully expanded and peak nutrition is achieved.",
-        "GREEN CORAL" to "A loose-leaf variety known for its ruffled, curly leaves and mild, sweet flavor. It is highly heat-tolerant and matures quickly.",
-        "PRIZEHEAD" to "Large, loose heads with reddish-bronze tinged leaves. Very crisp, slow to bolt, and ideal for home gardens.",
-        "OLMETIE" to "A premium variety with thick, succulent leaves and excellent shelf life. It provides a satisfying crunch and sweet taste."
+        "VEGETATIVE" to "Main growth phase where the lettuce gains most of its leaf mass and volume.",
+        "HEADING" to "The stage where inner leaves begin forming the dense lettuce heart/head structure.",
+        "MATURITY" to "Harvest-ready stage. Leaves are fully expanded and peak weight and nutrition are achieved.",
+        "MATURE" to "Harvest-ready stage. Leaves are fully expanded and peak weight and nutrition are achieved.",
+        "OLMETIE" to "A premium variety with thick, succulent leaves and excellent shelf life. It provides a satisfying crunch and sweet taste.",
+        "LIMAMBO" to "A resilient, fast-growing lettuce variety with vibrant green, compact leaf structures suited for high-density yields.",
+        "ORBITAL" to "A modern hybrid lettuce variety featuring dense canopy formation, high chlorophyll vigor, and exceptional shelf stability."
     )
 
     AgrinovisScaffold(
@@ -137,7 +130,15 @@ fun DashboardScreen(
                 
                 // 3D Preview - Animated Evolution
                 item {
-                    ThreeDLettucePreview(stage = currentStage)
+                    ThreeDLettucePreview(
+                        stage = currentStage,
+                        onStageChange = { selectedStage ->
+                            val clickedIndex = stages.indexOfFirst { it.equals(selectedStage, ignoreCase = true) }
+                            if (clickedIndex != -1) {
+                                stageIndex = clickedIndex
+                            }
+                        }
+                    )
                 }
 
                 // Weather Card - Dynamic from API based on Real Location
@@ -163,9 +164,13 @@ fun DashboardScreen(
                 item {
                     PlantCategorySection(
                         title = "Growth Stages",
-                        items = listOf("SEEDLING", "EARLY GROWTH", "VEGETATIVE", "MATURE"),
+                        items = listOf("SEEDLING", "VEGETATIVE", "HEADING", "MATURITY"),
                         onItemClick = { item ->
                             selectedInfo = item to (infoMapping[item] ?: "No description available.")
+                            val clickedIndex = stages.indexOfFirst { it.equals(item, ignoreCase = true) }
+                            if (clickedIndex != -1) {
+                                stageIndex = clickedIndex
+                            }
                         }
                     )
                 }

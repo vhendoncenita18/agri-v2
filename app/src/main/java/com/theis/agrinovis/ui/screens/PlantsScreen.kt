@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -26,12 +28,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.theis.agrinovis.data.local.entities.PlantEntity
 import com.theis.agrinovis.ui.components.AgrinovisScaffold
+import com.theis.agrinovis.ui.components.HolographicPlantPreview
 import com.theis.agrinovis.ui.navigation.Screen
 import com.theis.agrinovis.ui.theme.GlassBackground
+import com.theis.agrinovis.ui.theme.GrowthStageBadge
 import com.theis.agrinovis.ui.theme.NeonGreen
-import com.theis.agrinovis.ui.utils.PlantUtils
+import com.theis.agrinovis.ui.theme.getStageColorTheme
 import com.theis.agrinovis.ui.viewmodels.PlantsViewModel
-import com.theis.agrinovis.visualization.threeD.LettuceScene
 
 @Composable
 fun PlantsScreen(
@@ -39,6 +42,7 @@ fun PlantsScreen(
     viewModel: PlantsViewModel = viewModel()
 ) {
     val plants by viewModel.allPlants.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
     val activePlants = plants.filter { !it.harvestStatus.equals("Harvested", ignoreCase = true) }
 
     // Known growth stage order for logical chronological sorting
@@ -63,7 +67,24 @@ fun PlantsScreen(
 
     AgrinovisScaffold(
         navController = navController,
-        title = "Monitoring Fleet"
+        title = "Monitoring Fleet",
+        actions = {
+            if (isSyncing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.padding(end = 12.dp).size(20.dp),
+                    color = NeonGreen,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                IconButton(onClick = { viewModel.forceSyncAll() }) {
+                    Icon(
+                        Icons.Default.Refresh,
+                        contentDescription = "Sync All",
+                        tint = NeonGreen
+                    )
+                }
+            }
+        }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (activePlants.isEmpty()) {
@@ -121,6 +142,7 @@ fun PlantsScreen(
 
 @Composable
 fun GrowthStageHeader(stage: String, count: Int) {
+    val stageTheme = getStageColorTheme(stage)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -139,10 +161,10 @@ fun GrowthStageHeader(stage: String, count: Int) {
                     modifier = Modifier
                         .size(4.dp, 16.dp)
                         .clip(RoundedCornerShape(2.dp))
-                        .background(NeonGreen)
+                        .background(stageTheme.accentColor)
                 )
                 Text(
-                    text = stage.uppercase(),
+                    text = "${stageTheme.icon} ${stage.uppercase()}",
                     fontWeight = FontWeight.Black,
                     color = Color.White,
                     fontSize = 14.sp,
@@ -151,15 +173,15 @@ fun GrowthStageHeader(stage: String, count: Int) {
             }
 
             Surface(
-                color = NeonGreen.copy(alpha = 0.12f),
+                color = stageTheme.containerColor,
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, NeonGreen.copy(alpha = 0.25f))
+                border = BorderStroke(1.dp, stageTheme.borderColor)
             ) {
                 Text(
                     text = "$count ${if (count == 1) "PLANT" else "PLANTS"}",
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
                     fontSize = 9.sp,
-                    color = NeonGreen,
+                    color = stageTheme.accentColor,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.8.sp
                 )
@@ -171,15 +193,13 @@ fun GrowthStageHeader(stage: String, count: Int) {
         HorizontalDivider(
             modifier = Modifier.fillMaxWidth(),
             thickness = 1.dp,
-            color = NeonGreen.copy(alpha = 0.15f)
+            color = stageTheme.borderColor
         )
     }
 }
 
 @Composable
 fun PlantCard(plant: PlantEntity, onClick: () -> Unit) {
-    val modelPath = PlantUtils.getModelPathForStage(plant.stage)
-
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -199,11 +219,9 @@ fun PlantCard(plant: PlantEntity, onClick: () -> Unit) {
                     .background(Color.White.copy(alpha = 0.02f)),
                 contentAlignment = Alignment.Center
             ) {
-                LettuceScene(
+                HolographicPlantPreview(
                     modifier = Modifier.fillMaxSize(),
-                    modelPath = modelPath,
-                    scale = 1.4f,
-                    showScanningText = false
+                    stage = plant.stage
                 )
             }
             
@@ -230,18 +248,7 @@ fun PlantCard(plant: PlantEntity, onClick: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Surface(
-                        color = NeonGreen.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Text(
-                            text = plant.stage.uppercase(),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                            fontSize = 8.sp,
-                            color = NeonGreen,
-                            fontWeight = FontWeight.Black
-                        )
-                    }
+                    GrowthStageBadge(stage = plant.stage)
 
                     // SYNC STATUS BADGE
                     Surface(

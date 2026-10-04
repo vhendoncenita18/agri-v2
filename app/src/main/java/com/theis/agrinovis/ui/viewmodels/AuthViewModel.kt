@@ -1,7 +1,11 @@
 package com.theis.agrinovis.ui.viewmodels
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.theis.agrinovis.data.local.database.AgrinovisDatabase
+import com.theis.agrinovis.data.local.entities.UserAccountEntity
+import com.theis.agrinovis.data.session.MonitoringSession
 import com.theis.agrinovis.data.remote.SupabaseClient
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
@@ -16,10 +20,13 @@ sealed class AuthState {
     object Loading : AuthState()
     object Success : AuthState()
     object SessionRestored : AuthState()
+    object OfflineMode : AuthState()
     data class Error(val message: String) : AuthState()
 }
 
-class AuthViewModel : ViewModel() {
+class AuthViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val userDao = AgrinovisDatabase.getDatabase(application).userDao()
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState
@@ -52,9 +59,16 @@ class AuthViewModel : ViewModel() {
                         put("full_name", fullName)
                     }
                 }
+                userDao.insertUser(UserAccountEntity(email = email, passwordHash = pass, fullName = fullName))
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
-                _authState.value = AuthState.Error(formatAuthError(e.message))
+                // If offline during signup, cache locally so they can log in offline with this account
+                try {
+                    userDao.insertUser(UserAccountEntity(email = email, passwordHash = pass, fullName = fullName))
+                    _authState.value = AuthState.Success
+                } catch (_: Exception) {
+                    _authState.value = AuthState.Error(formatAuthError(e.message))
+                }
             }
         }
     }
@@ -67,10 +81,36 @@ class AuthViewModel : ViewModel() {
                     this.email = email
                     password = pass
                 }
+                // Save/update locally upon successful online login
+                try {
+                    userDao.insertUser(UserAccountEntity(email = email, passwordHash = pass, fullName = email.substringBefore("@")))
+                } catch (_: Exception) {}
+
+                MonitoringSession.isOfflineMode = false
                 _authState.value = AuthState.Success
             } catch (e: Exception) {
-                _authState.value = AuthState.Error(formatAuthError(e.message))
+                // Fallback to offline local account check when online login fails (e.g. no internet)
+                try {
+                    val localUser = userDao.getUserByEmail(email)
+                    if (localUser != null && localUser.passwordHash == pass) {
+                        MonitoringSession.isOfflineMode = true
+                        MonitoringSession.offlineUserEmail = email
+                        _authState.value = AuthState.Success
+                    } else {
+                        _authState.value = AuthState.Error(formatAuthError(e.message))
+                    }
+                } catch (dbEx: Exception) {
+                    _authState.value = AuthState.Error(formatAuthError(e.message))
+                }
             }
+        }
+    }
+
+    fun loginOffline(email: String = "") {
+        viewModelScope.launch {
+            MonitoringSession.isOfflineMode = true
+            MonitoringSession.offlineUserEmail = email.ifBlank { "offline@agrinovis.io" }
+            _authState.value = AuthState.OfflineMode
         }
     }
 
@@ -79,9 +119,9 @@ class AuthViewModel : ViewModel() {
         val lowerMsg = msg.lowercase()
         return when {
             lowerMsg.contains("unable to resolve host") || lowerMsg.contains("connect") || lowerMsg.contains("network") ->
-                "Network error: Internet required for initial login. If you previously logged in, restart the app to restore your session."
+                "Network error: Unable to connect to server. If you have an existing account, your offline credentials will be verified locally."
             lowerMsg.contains("over_email_send_rate_limit") || lowerMsg.contains("rate limit") -> 
-                "Email rate limit exceeded. Please wait a few minutes before trying again, or disable 'Confirm Email' in Supabase settings."
+                "Email rate limit exceeded. Please wait a few minutes before trying again."
             lowerMsg.contains("invalid login credentials") -> 
                 "Email or password is incorrect."
             lowerMsg.contains("already registered") || lowerMsg.contains("user already exists") -> 
@@ -89,7 +129,6 @@ class AuthViewModel : ViewModel() {
             lowerMsg.contains("email not confirmed") -> 
                 "Please check your email to confirm your account."
             else -> {
-                // Strip raw HTTP request headers if present
                 if (msg.contains("URL:") || msg.contains("Headers:")) {
                     msg.substringBefore("\nURL:").substringBefore("URL:").trim()
                 } else {

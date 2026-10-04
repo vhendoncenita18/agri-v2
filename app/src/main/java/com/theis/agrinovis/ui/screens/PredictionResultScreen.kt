@@ -30,9 +30,12 @@ import com.theis.agrinovis.ui.components.ShimmerSkeletonItem
 import com.theis.agrinovis.ui.navigation.Screen
 import com.theis.agrinovis.ui.theme.DarkHologramBG
 import com.theis.agrinovis.ui.theme.GlassBackground
+import com.theis.agrinovis.ui.theme.GrowthStageBadge
 import com.theis.agrinovis.ui.theme.NeonGreen
+import com.theis.agrinovis.ui.utils.PlantUtils
 import com.theis.agrinovis.ui.viewmodels.PlantsViewModel
 import com.theis.agrinovis.ui.viewmodels.SavePlantState
+import com.theis.agrinovis.visualization.threeD.LettuceScene
 import kotlinx.coroutines.delay
 
 @Composable
@@ -130,6 +133,27 @@ fun PredictionResultScreen(
                             )
                         }
 
+                        // 3D Plant Representation Item
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(200.dp)
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(GlassBackground)
+                                    .border(1.dp, NeonGreen.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                LettuceScene(
+                                    modifier = Modifier.fillMaxSize(),
+                                    modelPath = PlantUtils.getModelPathForStage(plant.stage),
+                                    scale = PlantUtils.getScaleForStage(plant.stage),
+                                    orbitRadius = PlantUtils.getCameraRadiusForStage(plant.stage),
+                                    showScanningText = false
+                                )
+                            }
+                        }
+
                         // ERROR ALERT BANNER FOR SUPABASE INSERT FAILURE
                         if (saveState is SavePlantState.Error) {
                             item {
@@ -183,7 +207,19 @@ fun PredictionResultScreen(
 
                         item {
                             HolographicCard(title = "Summary Data") {
-                                HolographicDetailItem("GROWTH STAGE", plant.stage.uppercase())
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "GROWTH STAGE",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White.copy(alpha = 0.6f)
+                                    )
+                                    GrowthStageBadge(stage = plant.stage)
+                                }
                                 HolographicDetailItem("LEAF COUNT", plant.leafCount.toString())
                                 HolographicDetailItem("DIAMETER", "${plant.diameter} CM")
                                 HolographicDetailItem("HEIGHT", "${plant.height} CM")

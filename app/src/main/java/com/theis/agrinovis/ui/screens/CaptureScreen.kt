@@ -29,12 +29,19 @@ import coil.compose.AsyncImage
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import android.graphics.ImageDecoder
+import android.os.Build
+import android.provider.MediaStore
+import android.util.Log
 import com.theis.agrinovis.data.session.MonitoringSession
+import com.theis.agrinovis.ml.cv.CvMode
+import com.theis.agrinovis.ml.cv.TFLiteCvEngine
 import com.theis.agrinovis.ui.components.AgrinovisScaffold
 import com.theis.agrinovis.ui.components.CameraPreview
 import com.theis.agrinovis.ui.navigation.Screen
 import com.theis.agrinovis.ui.theme.NeonGreen
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 import java.util.concurrent.Executor
 
@@ -42,6 +49,8 @@ import java.util.concurrent.Executor
 @Composable
 fun CaptureScreen(navController: NavController, mode: String) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val cvEngine = remember { TFLiteCvEngine(context) }
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     var captureSuccess by remember { mutableStateOf(false) }
     
@@ -259,11 +268,32 @@ fun CaptureScreen(navController: NavController, mode: String) {
                         onClick = {
                             if (isPreviewMode) {
                                 // Save to session
-                                capturedImageUri?.let {
+                                capturedImageUri?.let { uri ->
                                     if (mode == "Diameter") {
-                                        MonitoringSession.diameterImageUri = it.toString()
+                                        MonitoringSession.diameterImageUri = uri.toString()
                                     } else {
-                                        MonitoringSession.heightImageUri = it.toString()
+                                        MonitoringSession.heightImageUri = uri.toString()
+                                    }
+
+                                    // Run CV Engine asynchronously
+                                    scope.launch {
+                                        try {
+                                            val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                                ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri))
+                                            } else {
+                                                @Suppress("DEPRECATION")
+                                                MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+                                            }
+                                            val cvMode = if (mode == "Diameter") CvMode.DIAMETER else CvMode.HEIGHT
+                                            val result = cvEngine.processImage(bitmap, cvMode)
+                                            if (mode == "Diameter") {
+                                                MonitoringSession.diameterCvResult = result
+                                            } else {
+                                                MonitoringSession.heightCvResult = result
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e("CaptureScreen", "CV Extraction exception: ${e.message}")
+                                        }
                                     }
                                 }
                                 captureSuccess = true

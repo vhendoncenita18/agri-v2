@@ -69,6 +69,11 @@ fun LoginScreen(
             navController.navigate(Screen.Dashboard.route) {
                 popUpTo(Screen.Login.route) { inclusive = true }
             }
+        } else if (authState is AuthState.OfflineMode) {
+            Toast.makeText(context, "Logged in in Offline Mode (Local Records Active)", Toast.LENGTH_LONG).show()
+            navController.navigate(Screen.Dashboard.route) {
+                popUpTo(Screen.Login.route) { inclusive = true }
+            }
         }
     }
 
@@ -188,29 +193,47 @@ fun LoginScreen(
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
+                val errorMessage = (authState as? AuthState.Error)?.message ?: ""
+                val isNetworkError = errorMessage.contains("Network", ignoreCase = true) || errorMessage.contains("Internet", ignoreCase = true) || errorMessage.contains("connect", ignoreCase = true)
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 20.dp)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(16.dp))
                         .background(Color(0xFFFF5252).copy(alpha = 0.15f))
-                        .border(1.dp, Color(0xFFFF5252).copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                        .padding(12.dp)
+                        .border(1.dp, Color(0xFFFF5252).copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                        .padding(14.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Default.Error,
-                            contentDescription = null,
-                            tint = Color(0xFFFF5252),
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Text(
-                            text = (authState as? AuthState.Error)?.message ?: "",
-                            color = Color.White,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Default.Error,
+                                contentDescription = null,
+                                tint = Color(0xFFFF5252),
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = errorMessage,
+                                color = Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+
+                        if (isNetworkError) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            OutlinedButton(
+                                onClick = { viewModel.loginOffline(email.trim()) },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, NeonGreen),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = NeonGreen)
+                            ) {
+                                Text("⚡ CONTINUE IN OFFLINE MODE", fontWeight = FontWeight.Bold, fontSize = 11.sp)
+                            }
+                        }
                     }
                 }
             }
@@ -307,7 +330,8 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
 
             // SECONDARY NAVIGATION
             TextButton(

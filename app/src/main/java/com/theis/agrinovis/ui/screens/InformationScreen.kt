@@ -47,7 +47,7 @@ fun InformationScreen(navController: NavController) {
             item {
                 InfoSection(
                     title = "Growing Stages",
-                    content = "The system identifies stages such as Seedling, Early Growth, Vegetative, and Mature. Each stage is mapped to a 3D visualization for better understanding."
+                    content = "The system identifies stages such as Seedling, Vegetative, Heading, and Maturity. Each stage is mapped to a 3D visualization for better understanding."
                 )
             }
         }

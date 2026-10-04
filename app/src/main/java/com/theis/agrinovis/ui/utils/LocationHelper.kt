@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.location.Location
 import com.google.android.gms.location.LocationServices
-import com.google.android.gms.tasks.Task
+import com.google.android.gms.location.Priority
 import kotlinx.coroutines.tasks.await
 
 object LocationHelper {
@@ -12,8 +12,13 @@ object LocationHelper {
     suspend fun getLastLocation(context: Context): Location? {
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         return try {
-            val locationTask: Task<Location> = fusedLocationClient.lastLocation
-            locationTask.await()
+            // Attempt fresh GPS fix; if null or delayed, instantly fallback to device's lastKnownLocation cache
+            val currentLocation = try {
+                fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).await()
+            } catch (_: Exception) {
+                null
+            }
+            currentLocation ?: fusedLocationClient.lastLocation.await()
         } catch (e: Exception) {
             null
         }

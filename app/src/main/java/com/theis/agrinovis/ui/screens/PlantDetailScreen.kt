@@ -3,6 +3,7 @@ package com.theis.agrinovis.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
@@ -22,7 +23,9 @@ import com.theis.agrinovis.ui.components.HolographicCard
 import com.theis.agrinovis.ui.components.HolographicDetailItem
 import com.theis.agrinovis.ui.navigation.Screen
 import com.theis.agrinovis.ui.theme.DarkHologramBG
+import com.theis.agrinovis.ui.theme.GrowthStageBadge
 import com.theis.agrinovis.ui.theme.NeonGreen
+import com.theis.agrinovis.ui.theme.getStageColorTheme
 import com.theis.agrinovis.ui.utils.PlantUtils
 import com.theis.agrinovis.ui.viewmodels.PlantsViewModel
 import com.theis.agrinovis.visualization.threeD.LettuceScene
@@ -85,6 +88,7 @@ fun PlantDetailScreen(
                 }
             } else {
                 val recommendations = PlantUtils.getRecommendationsForStage(plant!!.stage)
+                val stageTheme = getStageColorTheme(plant!!.stage)
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -102,6 +106,8 @@ fun PlantDetailScreen(
                             LettuceScene(
                                 modifier = Modifier.fillMaxSize(),
                                 modelPath = PlantUtils.getModelPathForStage(plant!!.stage),
+                                scale = PlantUtils.getScaleForStage(plant!!.stage),
+                                orbitRadius = PlantUtils.getCameraRadiusForStage(plant!!.stage),
                                 showScanningText = false
                             )
                         }
@@ -112,18 +118,54 @@ fun PlantDetailScreen(
                             
                             HolographicCard(title = "Plant Information") {
                                 HolographicDetailItem("VARIETY", plant!!.variety)
-                                HolographicDetailItem("STAGE", plant!!.stage.uppercase())
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "CLOUD SYNC STATUS",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White.copy(alpha = 0.6f)
+                                    )
+                                    Surface(
+                                        color = if (plant!!.isSynced) NeonGreen.copy(alpha = 0.15f) else Color(0xFFFFB300).copy(alpha = 0.15f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    ) {
+                                        Text(
+                                            text = if (plant!!.isSynced) "☁️ SYNCED ONLINE" else "⚡ LOCAL (PENDING SYNC)",
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                            fontSize = 9.sp,
+                                            color = if (plant!!.isSynced) NeonGreen else Color(0xFFFFB300),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "GROWTH STAGE",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White.copy(alpha = 0.6f)
+                                    )
+                                    GrowthStageBadge(stage = plant!!.stage)
+                                }
                                 HolographicDetailItem("PLANTED ON", plant!!.plantedDate)
                                 HolographicDetailItem("GROWTH AGE", "${plant!!.dap} DAYS")
                                 HolographicDetailItem("LEAF COUNT", plant!!.leafCount.toString())
                             }
 
                             HolographicCard(title = "Stage Recommendations & Guidance") {
-                                StageRecommendationRow("PRIMARY FOCUS", recommendations.primaryFocus)
-                                StageRecommendationRow("IRRIGATION SCHEDULE", recommendations.irrigationAdvice)
-                                StageRecommendationRow("LIGHTING & CLIMATE", recommendations.lightingAdvice)
-                                StageRecommendationRow("NUTRIENT FORMULA", recommendations.nutrientAdvice)
-                                StageRecommendationRow("DAILY MONITORING TIP", recommendations.monitoringTip)
+                                StageRecommendationRow("PRIMARY FOCUS", recommendations.primaryFocus, stageTheme.accentColor)
+                                StageRecommendationRow("IRRIGATION SCHEDULE", recommendations.irrigationAdvice, stageTheme.accentColor)
+                                StageRecommendationRow("LIGHTING & CLIMATE", recommendations.lightingAdvice, stageTheme.accentColor)
+                                StageRecommendationRow("NUTRIENT FORMULA", recommendations.nutrientAdvice, stageTheme.accentColor)
+                                StageRecommendationRow("DAILY MONITORING TIP", recommendations.monitoringTip, stageTheme.accentColor)
                             }
 
                             HolographicCard(title = "Atmospheric conditions") {
@@ -154,13 +196,17 @@ fun PlantDetailScreen(
 }
 
 @Composable
-private fun StageRecommendationRow(label: String, detail: String) {
+private fun StageRecommendationRow(
+    label: String, 
+    detail: String, 
+    accentColor: Color = NeonGreen
+) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = label,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
-            color = NeonGreen.copy(alpha = 0.8f)
+            color = accentColor.copy(alpha = 0.9f)
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
