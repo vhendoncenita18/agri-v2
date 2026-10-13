@@ -32,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import com.theis.agrinovis.R
 import com.theis.agrinovis.data.model.WeatherResponse
 import com.theis.agrinovis.data.local.entities.PlantEntity
@@ -40,6 +41,7 @@ import com.theis.agrinovis.ui.theme.GlassBackground
 import com.theis.agrinovis.ui.theme.NeonGreen
 import com.theis.agrinovis.ui.theme.getStageColorTheme
 import com.theis.agrinovis.ui.utils.PlantUtils
+import coil.compose.AsyncImage
 import com.theis.agrinovis.visualization.threeD.LettuceScene
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -113,7 +115,8 @@ fun DashboardHeader(
             Spacer(modifier = Modifier.height(20.dp))
 
             // System Quick Status (Replacing Search Bar)
-            val isOffline = com.theis.agrinovis.data.session.MonitoringSession.isOfflineMode
+            val isOnline by com.theis.agrinovis.data.remote.NetworkMonitor.isOnline.collectAsState()
+            val isOffline = !isOnline || com.theis.agrinovis.data.session.MonitoringSession.isOfflineMode
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -238,20 +241,46 @@ fun PlantCategorySection(
 
 @Composable
 fun PlantCircleItem(name: String, onClick: () -> Unit) {
+    val upperName = name.trim().uppercase()
+    val isVariety = upperName == "OLMETIE" || upperName == "LIMAMBO" || upperName == "ORBITAL"
+    val isStage = upperName == "SEEDLING" || upperName == "VEGETATIVE" || upperName == "HEADING" || upperName == "MATURITY" || upperName == "MATURE"
     val stageTheme = getStageColorTheme(name)
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.clickable { onClick() }
     ) {
         Box(
             modifier = Modifier
-                .size(80.dp) // Increased size
+                .size(80.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(stageTheme.containerColor)
                 .border(0.5.dp, stageTheme.borderColor, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = stageTheme.icon, fontSize = 32.sp) // Dynamic stage icon
+            when {
+                isVariety -> {
+                    val assetPath = PlantUtils.get2dPicturePathForVarietyAndStage(name, "Maturity")
+                    AsyncImage(
+                        model = "file:///android_asset/$assetPath",
+                        contentDescription = name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                isStage -> {
+                    val assetPath = PlantUtils.get2dPicturePathForVarietyAndStage("Orbital", name)
+                    AsyncImage(
+                        model = "file:///android_asset/$assetPath",
+                        contentDescription = name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                else -> {
+                    Text(text = stageTheme.icon, fontSize = 32.sp)
+                }
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
         Text(text = name, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color.White)
@@ -582,14 +611,14 @@ fun HarvestPredictionsSummary(plants: List<PlantEntity>) {
                     fontWeight = FontWeight.Bold
                 )
             } else {
-                val readyCount = plants.count { it.dap >= 45 || it.daysToHarvest <= 0 }
+                val readyCount = plants.count { it.dap >= 33 || it.daysToHarvest <= 0 || it.stage.uppercase() == "MATURITY" }
                 val growingCount = plants.size - readyCount
 
                 Row(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1.2f)) {
                         Text(text = "UPCOMING SCHEDULE", fontSize = 10.sp, fontWeight = FontWeight.Black, color = NeonGreen, letterSpacing = 1.sp)
                         Spacer(modifier = Modifier.height(8.dp))
-                        plants.filter { it.daysToHarvest > 0 && it.dap < 45 }
+                        plants.filter { it.daysToHarvest > 0 && it.dap < 33 }
                             .sortedBy { it.daysToHarvest }
                             .take(3)
                             .forEach { plant ->
@@ -651,6 +680,15 @@ fun DashboardInfoDialog(
     description: String,
     onDismiss: () -> Unit
 ) {
+    val upperTitle = title.trim().uppercase()
+    val assetPath = when {
+        upperTitle == "OLMETIE" || upperTitle == "LIMAMBO" || upperTitle == "ORBITAL" -> 
+            PlantUtils.get2dPicturePathForVarietyAndStage(title, "Maturity")
+        upperTitle == "SEEDLING" || upperTitle == "VEGETATIVE" || upperTitle == "HEADING" || upperTitle == "MATURITY" || upperTitle == "MATURE" -> 
+            PlantUtils.get2dPicturePathForVarietyAndStage("Orbital", title)
+        else -> null
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { 
@@ -663,18 +701,26 @@ fun DashboardInfoDialog(
         },
         text = {
             Column {
-                // Placeholder for future PIC
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(140.dp)
+                        .height(180.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color.White.copy(alpha = 0.05f))
                         .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.Image, contentDescription = null, tint = Color.White.copy(alpha = 0.2f), modifier = Modifier.size(48.dp))
-                    Text("IMAGE PREVIEW", color = Color.White.copy(alpha = 0.1f), fontSize = 10.sp, modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp))
+                    if (assetPath != null) {
+                        AsyncImage(
+                            model = "file:///android_asset/$assetPath",
+                            contentDescription = title,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(Icons.Default.Image, contentDescription = null, tint = Color.White.copy(alpha = 0.2f), modifier = Modifier.size(48.dp))
+                        Text("IMAGE PREVIEW", color = Color.White.copy(alpha = 0.1f), fontSize = 10.sp, modifier = Modifier.align(Alignment.BottomCenter).padding(8.dp))
+                    }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(

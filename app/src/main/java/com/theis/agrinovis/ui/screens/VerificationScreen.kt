@@ -25,11 +25,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.theis.agrinovis.data.local.database.AgrinovisDatabase
 import com.theis.agrinovis.data.local.entities.PlantEntity
 import com.theis.agrinovis.data.remote.RetrofitClient
 import com.theis.agrinovis.data.remote.WeatherConfig
+import com.theis.agrinovis.data.repository.PlantRepository
 import com.theis.agrinovis.data.session.MonitoringSession
+import com.theis.agrinovis.ml.prediction.LstmObservationSequence
 import com.theis.agrinovis.ml.prediction.PredictionInput
+import com.theis.agrinovis.ml.prediction.TFLiteLstmPredictionEngine
 import com.theis.agrinovis.ml.prediction.TFLitePredictionEngine
 import com.theis.agrinovis.ui.components.AgrinovisScaffold
 import com.theis.agrinovis.ui.components.futuristicTextFieldColors
@@ -68,7 +72,7 @@ fun VerificationScreen(navController: NavController) {
     var leafCount by remember { mutableStateOf("") }
     
     // Variety Dropdown
-    val varieties = listOf("Olmetie", "Limambo", "Orbital")
+    val varieties = listOf("Green Coral", "Olmetie", "Prizehead")
     var varietyExpanded by remember { mutableStateOf(false) }
     var variety by remember { mutableStateOf(varieties[0]) }
     
@@ -172,7 +176,7 @@ fun VerificationScreen(navController: NavController) {
     }
 
     // Validation
-    val isDapInvalidForSeedling = growthStage == "Seedling" && (dap.toIntOrNull() ?: 0) > 7
+    val isDapInvalidForSeedling = growthStage == "Seedling" && (dap.toIntOrNull() ?: 0) > 10
     
     val isFormValid = height.isNotEmpty() && diameter.isNotEmpty() && 
                      variety.isNotEmpty() && plantedDate.isNotEmpty() && 
@@ -248,8 +252,8 @@ fun VerificationScreen(navController: NavController) {
                                 Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFFFFB300), modifier = Modifier.size(20.dp))
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
-                                    Text("AI MODEL TRAINING IN PROGRESS", color = Color(0xFFFFB300), fontWeight = FontWeight.Black, fontSize = 12.sp)
-                                    Text("CV model ('models/cv_model.tflite') is pending research training. Baseline values loaded for manual verification.", color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp)
+                                    Text("AI MODEL PENDING OR SKIPPED", color = Color(0xFFFFB300), fontWeight = FontWeight.Black, fontSize = 12.sp)
+                                    Text("CV model ('models/cv_model.tflite') was not triggered or confidence was low. Baseline values loaded for manual verification.", color = Color.White.copy(alpha = 0.8f), fontSize = 11.sp)
                                 }
                             }
                         }
@@ -405,7 +409,7 @@ fun VerificationScreen(navController: NavController) {
                 if (isDapInvalidForSeedling) {
                     item {
                         Text(
-                            text = "Seedling stage cannot have a DAP greater than 7 days.",
+                            text = "Seedling stage cannot have a DAP greater than 10 days.",
                             color = Color(0xFFFF3D00),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
@@ -551,11 +555,42 @@ fun VerificationScreen(navController: NavController) {
                         )
 
                         scope.launch {
-                            val predictionEngine = TFLitePredictionEngine(context)
-                            val predictionResult = predictionEngine.predict(input)
+                            val db = AgrinovisDatabase.getDatabase(context)
+                            val repo = PlantRepository(db.plantDao())
+                            val targetPlantId = MonitoringSession.currentPlant?.id
+                                ?: "L-${UUID.randomUUID().toString().take(6).uppercase()}"
+
+                            val historyEntities = repo.getRecentObservationsForPlant(targetPlantId, variety, limit = 2)
+                            val historyInputs = historyEntities.map { entity ->
+                                PredictionInput(
+                                    dap = entity.dap,
+                                    leafCount = entity.leafCount,
+                                    diameterCm = entity.diameter.toFloat(),
+                                    heightCm = entity.height.toFloat(),
+                                    temperature = entity.temp.toFloat(),
+                                    humidity = entity.humidity.toFloat(),
+                                    windSpeed = entity.windSpeed.toFloat(),
+                                    pressure = entity.pressure.toFloat(),
+                                    variety = entity.variety,
+                                    growthStage = entity.stage,
+                                    recordDateIso = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(entity.timestamp))
+                                )
+                            }
+
+                            val predictionResult = if (historyInputs.size >= 2) {
+                                val fullSequence = (historyInputs.take(2) + input).sortedBy { it.dap }
+                                val lstmSeq = LstmObservationSequence(fullSequence)
+                                val lstmEngine = TFLiteLstmPredictionEngine(context)
+                                Log.i("VerificationScreen", "Executing Temporal Attention LSTM 3-step sequence prediction...")
+                                lstmEngine.predictLstm(lstmSeq)
+                            } else {
+                                Log.i("VerificationScreen", "Executing single-step prediction (Sequence count: ${historyInputs.size + 1}/3)...")
+                                val singleEngine = TFLitePredictionEngine(context)
+                                singleEngine.predict(input)
+                            }
 
                             val entity = PlantEntity(
-                                id = "L-${UUID.randomUUID().toString().take(6).uppercase()}",
+                                id = targetPlantId,
                                 variety = variety,
                                 stage = if (predictionResult.isSuccessful) predictionResult.predictedStage else growthStage,
                                 plantedDate = plantedDate,
@@ -569,10 +604,11 @@ fun VerificationScreen(navController: NavController) {
                                 windSpeed = windSpeed.toDoubleOrNull() ?: 0.0,
                                 rainfall = rainfall.toDoubleOrNull() ?: 0.0,
                                 condition = condition,
-                                harvestStatus = if ((dap.toIntOrNull() ?: 0) >= 45) "Ready to Harvest" else "Growing",
-                                estHarvestDate = if (predictionResult.isSuccessful && predictionResult.estimatedHarvestDate.isNotBlank()) predictionResult.estimatedHarvestDate else "Sep 18, 2026",
-                                daysToHarvest = if (predictionResult.isSuccessful) predictionResult.daysToHarvest else 8
+                                harvestStatus = if ((dap.toIntOrNull() ?: 0) >= 33 || predictionResult.daysToHarvest <= 0) "Ready to Harvest" else "Growing",
+                                estHarvestDate = predictionResult.estimatedHarvestDate,
+                                daysToHarvest = predictionResult.daysToHarvest
                             )
+                            db.plantDao().insertPlant(entity)
                             MonitoringSession.currentPlant = entity
                             navController.navigate(Screen.PredictionResult.route)
                         }
