@@ -72,7 +72,7 @@ fun VerificationScreen(navController: NavController) {
     var leafCount by remember { mutableStateOf("") }
     
     // Variety Dropdown
-    val varieties = listOf("Green Coral", "Olmetie", "Prizehead")
+    val varieties = listOf("Olmetie", "Orbital", "Limambo")
     var varietyExpanded by remember { mutableStateOf(false) }
     var variety by remember { mutableStateOf(varieties[0]) }
     
