@@ -252,10 +252,8 @@ fun PlantCard(
     onClick: () -> Unit,
     onHarvestClick: (PlantEntity) -> Unit = {}
 ) {
-    val isReadyToHarvest = plant.harvestStatus.equals("Ready to Harvest", ignoreCase = true) ||
-            plant.stage.equals("Maturity", ignoreCase = true) ||
-            plant.daysToHarvest <= 0 ||
-            plant.dap >= 33
+    val remainingDays = com.theis.agrinovis.ui.utils.PlantUtils.calculateRemainingDays(plant.estHarvestDate)
+    val isReadyToHarvest = remainingDays <= 0
 
     Box(
         modifier = Modifier
@@ -383,7 +381,7 @@ fun PlantCard(
                     Spacer(modifier = Modifier.height(4.dp))
 
                     Text(
-                        text = "${plant.dap} DAP • ${if (plant.daysToHarvest <= 0) "Harvest Ready" else "${plant.daysToHarvest}d left"}",
+                        text = "${plant.dap} DAP • ${if (remainingDays <= 0) "Harvest Ready" else "${remainingDays}d left"}",
                         fontSize = 8.sp,
                         color = Color.White.copy(alpha = 0.6f),
                         fontWeight = FontWeight.Medium

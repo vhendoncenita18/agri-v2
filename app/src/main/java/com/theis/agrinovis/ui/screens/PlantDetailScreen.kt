@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import androidx.compose.ui.platform.LocalContext
 import com.theis.agrinovis.data.local.entities.PlantEntity
 import com.theis.agrinovis.ui.components.AgrinovisScaffold
 import com.theis.agrinovis.ui.components.HolographicCard
@@ -37,6 +38,7 @@ fun PlantDetailScreen(
     plantId: String,
     viewModel: PlantsViewModel = viewModel()
 ) {
+    val context = LocalContext.current
     var plant by remember { mutableStateOf<PlantEntity?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showHarvestDialog by remember { mutableStateOf(false) }
@@ -215,15 +217,21 @@ fun PlantDetailScreen(
                                     trackColor = Color.White.copy(alpha = 0.1f),
                                 )
 
+                                val remainingDays = PlantUtils.calculateRemainingDays(plant!!.estHarvestDate)
                                 val isReadyToHarvest = plant!!.harvestStatus.equals("Ready to Harvest", ignoreCase = true) ||
                                         plant!!.stage.equals("Maturity", ignoreCase = true) ||
-                                        plant!!.daysToHarvest <= 0 ||
-                                        plant!!.dap >= 33
+                                        remainingDays <= 0
 
                                 if (!plant!!.harvestStatus.equals("Harvested", ignoreCase = true)) {
                                     Spacer(modifier = Modifier.height(16.dp))
                                     Button(
-                                        onClick = { showHarvestDialog = true },
+                                        onClick = {
+                                            if (isReadyToHarvest) {
+                                                showHarvestDialog = true
+                                            } else {
+                                                android.widget.Toast.makeText(context, "Plant is not ready for harvest yet. Expected harvest date: ${plant!!.estHarvestDate}", android.widget.Toast.LENGTH_LONG).show()
+                                            }
+                                        },
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(48.dp),
@@ -240,7 +248,7 @@ fun PlantDetailScreen(
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
-                                            text = if (isReadyToHarvest) "HARVEST PLANT (READY)" else "HARVEST PLANT NOW",
+                                            text = if (isReadyToHarvest) "HARVEST PLANT (READY)" else "HARVEST PLANT (NOT READY)",
                                             color = if (isReadyToHarvest) Color.Black else NeonGreen,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Black,

@@ -1,6 +1,10 @@
 package com.theis.agrinovis.ui.utils
 
 import com.theis.agrinovis.data.local.entities.PlantEntity
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import kotlin.math.max
 
 data class StageRecommendation(
     val primaryFocus: String,
@@ -125,29 +129,40 @@ object PlantUtils {
         }
     }
 
+    fun calculateRemainingDays(estHarvestDateStr: String): Int {
+        return try {
+            val sdf = SimpleDateFormat("MMM dd, yyyy", Locale.US)
+            val targetDate = sdf.parse(estHarvestDateStr) ?: return 0
+            val today = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.time
+            
+            val diffMillis = targetDate.time - today.time
+            val diffDays = (diffMillis / (1000 * 60 * 60 * 24)).toInt()
+            max(0, diffDays)
+        } catch (e: Exception) {
+            0
+        }
+    }
+
     fun getUpdatedPlantForCurrentDate(plant: PlantEntity): PlantEntity {
-        if (plant.harvestStatus.equals("Harvested", ignoreCase = true) ||
-            plant.harvestStatus.equals("Ready to Harvest", ignoreCase = true) ||
-            plant.daysToHarvest <= 0 ||
-            plant.dap >= 33) {
+        if (plant.harvestStatus.equals("Harvested", ignoreCase = true)) {
             return plant
         }
+
+        val dynamicDaysToHarvest = calculateRemainingDays(plant.estHarvestDate)
 
         val now = System.currentTimeMillis()
         val elapsedMillis = now - plant.timestamp
-        if (elapsedMillis < 86_400_000L) { // Less than 24 hours elapsed
-            return plant
-        }
-
         val oneDayMillis = 86_400_000L
-        val elapsedDays = (elapsedMillis / oneDayMillis).toInt()
-        if (elapsedDays <= 0) {
-            return plant
-        }
+        val elapsedDays = if (elapsedMillis >= oneDayMillis) (elapsedMillis / oneDayMillis).toInt() else 0
 
-        // Increase DAP strictly 1 per day
-        val updatedDap = plant.dap + 1
-        val updatedDaysToHarvest = kotlin.math.max(0, plant.daysToHarvest - 1)
+        // Increase DAP by elapsed days or at least 1 if a day passed
+        val updatedDap = plant.dap + max(0, elapsedDays)
+        val updatedDaysToHarvest = dynamicDaysToHarvest
 
         val updatedStage = when {
             updatedDap <= 10 -> "Seedling"
@@ -156,23 +171,18 @@ object PlantUtils {
             else -> "Maturity"
         }
 
-        val updatedHarvestStatus = if (updatedDaysToHarvest <= 0 || updatedDap >= 33 || updatedStage.equals("Maturity", ignoreCase = true)) {
+        val updatedHarvestStatus = if (updatedDaysToHarvest <= 0 || updatedStage.equals("Maturity", ignoreCase = true)) {
             "Ready to Harvest"
         } else {
             plant.harvestStatus
         }
-
-        val calendar = java.util.Calendar.getInstance()
-        calendar.add(java.util.Calendar.DAY_OF_YEAR, updatedDaysToHarvest)
-        val updatedEstHarvestDate = java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.US).format(calendar.time)
 
         return plant.copy(
             dap = updatedDap,
             daysToHarvest = updatedDaysToHarvest,
             stage = updatedStage,
             harvestStatus = updatedHarvestStatus,
-            estHarvestDate = updatedEstHarvestDate,
-            timestamp = plant.timestamp + oneDayMillis
+            timestamp = if (elapsedDays > 0) plant.timestamp + (elapsedDays * oneDayMillis) else plant.timestamp
         )
     }
 }
